@@ -1,0 +1,152 @@
+:root {
+  --primary-color: #4285f4;
+  --secondary-color: #34a853;
+  --background-color: #ffffff;
+  --text-color: #333333;
+  --border-color: #e0e0e0;
+}
+
+body {
+  width: 400px;
+  margin: 0;
+  padding: 16px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+h2 {
+  font-size: 16px;
+  margin: 0;
+  margin-bottom: 8px;
+}
+
+.control-panel {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.primary-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: #3367d6;
+}
+
+.secondary-button {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+.secondary-button:hover {
+  background-color: #2d8f47;
+}
+
+.secondary-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.kpi-section {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.kpi-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kpi-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi-item label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+input[type="text"] {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+input[type="text"]:disabled {
+  background-color: #f5f5f5;
+}
+
+.target-kpis {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.target-kpi-input {
+  flex: 1;
+}
+
+.add-kpi-button {
+  padding: 8px 12px;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 16px;
+}
+
+.results-section {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab.active {
+  border-bottom-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.tab-content {
+  min-height: 200px;
+} 

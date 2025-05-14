@@ -1,0 +1,133 @@
+<!doctype html><html><head><title>GA4 AB Test Analyzer</title><meta charset="UTF-8"><style>:root {
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-color: #ffffff;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 320px;
+            padding: 1.25rem;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .message {
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            padding: 1rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .confidence-container {
+            background-color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .confidence-label {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+
+        .confidence-input {
+            width: 70px;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .confidence-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .reports-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .reports-button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .reports-button:active {
+            transform: translateY(0);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-color: #818cf8;
+                --primary-hover: #6366f1;
+                --text-primary: #f9fafb;
+                --text-secondary: #d1d5db;
+                --bg-color: #1f2937;
+                --border-color: #374151;
+            }
+
+            body {
+                background-color: var(--bg-color);
+            }
+
+            .message, .confidence-container {
+                background-color: #111827;
+            }
+
+            .confidence-input {
+                background-color: #374151;
+                color: #f9fafb;
+                border-color: #4b5563;
+            }
+
+            .confidence-input:focus {
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.1);
+            }
+        }</style><script defer="defer" src="popup.js"></script><link href="popup.css" rel="stylesheet"></head><body><div class="container"><div class="message">AB Test analizi yapmak için GA4'te segment karşılaştırma raporuna gidin ve sayfadaki "AB Test Analiz Et" butonunu kullanın.</div><div class="confidence-container"><label class="confidence-label">Güvenilirlik Oranı (%) <input type="number" id="confidenceLevel" class="confidence-input" value="95" min="1" max="99" step="1"></label></div><div class="button-container"><a href="chrome-extension://listing.html" id="optionsLink" target="_blank" class="reports-button">Tüm Raporları Görüntüle</a></div></div><script src="popup.js"></script></body></html>

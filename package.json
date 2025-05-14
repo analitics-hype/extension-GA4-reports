@@ -1,0 +1,33 @@
+{
+  "name": "ga4-abtest-analyzer",
+  "version": "1.0.0",
+  "description": "Google Analytics 4 AB Test sonuçlarını analiz eden ve yorumlayan Chrome eklentisi",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --config webpack.prod.js",
+    "dev": "webpack --config webpack.dev.js --watch",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "chrome-extension",
+    "google-analytics",
+    "ab-testing"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "clean-webpack-plugin": "^4.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.8.1",
+    "html-webpack-plugin": "^5.5.3",
+    "mini-css-extract-plugin": "^2.7.6",
+    "style-loader": "^3.3.3",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-merge": "^5.9.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "html2canvas": "^1.4.1"
+  }
+}

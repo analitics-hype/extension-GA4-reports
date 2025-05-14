@@ -1,0 +1,16 @@
+# Dependencies
+/node_modules
+
+# Compiled files
+# /dist
+
+# Environment variables
+.env
+
+# MacOS folder attributes
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
