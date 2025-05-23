@@ -55,7 +55,7 @@ module.exports = {
       chunks: ['listing'],
     }),
     new webpack.DefinePlugin({
-         'process.env.API_URL': JSON.stringify('https://hype-cro-production.up.railway.app/api')
+         'process.env.API_URL': JSON.stringify('https://backend-ga4-reports.onrender.com/api')
         //  'process.env.API_URL': JSON.stringify('http://localhost:3000/api')
     }),
   ],
