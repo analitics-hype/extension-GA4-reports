@@ -5,9 +5,9 @@
 /**
  * AB Test analizi yapar
  * @param {Object} tableData - Tablo verileri
- * @returns {Object} Analiz sonuçları
+ * @returns {Promise<Object>} Analiz sonuçları
  */
-export function analyzeABTest(tableData) {
+export async function analyzeABTest(tableData) {
   // Kontrol grubunu bul (V0 veya control içeren)
   const control = tableData.segments.find(segment => 
     segment.segment.toLowerCase().includes('v0') || 
@@ -32,8 +32,8 @@ export function analyzeABTest(tableData) {
     ? (control.metrics[goalMetric] / control.metrics[primaryMetric]) * 100 
     : 0;
   
-  // Her bir varyant için sonuçları hesapla
-  const variantResults = variants.map(variant => {
+  // Her bir varyant için sonuçları hesapla - Promise.all ile paralel işleme
+  const variantPromises = variants.map(async (variant) => {
     // Varyant için conversion rate hesapla
     const variantCR = variant.metrics[primaryMetric] > 0 
       ? (variant.metrics[goalMetric] / variant.metrics[primaryMetric]) * 100 
@@ -44,8 +44,8 @@ export function analyzeABTest(tableData) {
       ? ((variantCR - controlCR) / controlCR) * 100 
       : variantCR > 0 ? Infinity : 0;
     
-    // İstatistiksel anlamlılık hesapla
-    const stats = calculateSignificance(
+    // İstatistiksel anlamlılık hesapla - ARTIK AWAIT KULLANILIYOR
+    const stats = await calculateSignificance(
       control.metrics[primaryMetric],
       control.metrics[goalMetric],
       variant.metrics[primaryMetric],
@@ -61,6 +61,9 @@ export function analyzeABTest(tableData) {
       stats
     };
   });
+
+  // Tüm varyant promise'larını bekle
+  const variantResults = await Promise.all(variantPromises);
 
   // Tek bir analiz sonucu nesnesi oluşturmak yerine, tüm varyantları içeren bir sonuç döndür
   return {

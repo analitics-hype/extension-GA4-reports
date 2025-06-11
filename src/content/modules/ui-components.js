@@ -1,11 +1,10 @@
-import { calculateSignificance,analyzeABTest, calculateTestDuration } from './statistics.js';
-import { waitForAllElements } from './dom-helpers.js';
 import { getReportInfo } from './data-extraction.js';
-import { prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, checkKPIDataAndUpdateButton } from './data-processing.js';
+import { checkKPIDataAndUpdateButton, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData } from './data-processing.js';
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
-import { getResultsTemplate } from './templates.js';
-import { getResultsStyles } from './styles.js';
+import { waitForAllElements } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
+import { analyzeABTest, calculateSignificance, calculateTestDuration } from './statistics.js';
+import { getResultsTemplate } from './templates.js';
 /**
  * UI bileşenleri ile ilgili fonksiyonlar
  */
@@ -523,7 +522,7 @@ export function injectAnalyzeButton() {
           const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
           console.log("Analiz için hazırlanan veri: ", storedData);
           const analysisData = prepareAnalysisData(storedData);
-          const analysis = analyzeABTest(analysisData);
+          const analysis = await analyzeABTest(analysisData);
           
           displayResults(
             document.getElementById('ga4-abtest-content'),

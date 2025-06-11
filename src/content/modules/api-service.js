@@ -25,7 +25,7 @@ export async function sendReportToBackend(data) {
     conversionTab: data.conversionTab,
     analysis: {
       control: data.analysis.control,
-      // Yeni çoklu varyant desteği
+      // Yeni çoklu varyant desteği - her variant kendi stats'ı ile birlikte
       variants: data.analysis.variants || []
     }
   };
@@ -36,13 +36,16 @@ export async function sendReportToBackend(data) {
     backendData.analysis.improvement = data.analysis.improvement;
     backendData.analysis.stats = data.analysis.stats;
   } 
-  // Yeni çoklu varyant sistemi için
+  // Yeni çoklu varyant sistemi için - sadece genel stats'ı ayarla
   else if (data.analysis.variants && data.analysis.variants.length > 0) {
-    // Eğer variants dizisi varsa, ilk varyantın improvement ve stats değerlerini kullan
+    // Eğer variants dizisi varsa, ilk varyantın improvement ve stats değerlerini genel analysis için kullan
     const firstVariant = data.analysis.variants[0];
     backendData.analysis.variant = firstVariant;
     backendData.analysis.improvement = firstVariant.improvement;
     backendData.analysis.stats = firstVariant.stats;
+    
+    // ÖNEMLI: Her variant'ın kendi stats verisi korunuyor
+    // Bu, variants dizisinde zaten mevcut olduğu için ekstra bir işlem gerektirmiyor
   }
   
   console.log("Backend'e gönderilecek veri:", backendData);
