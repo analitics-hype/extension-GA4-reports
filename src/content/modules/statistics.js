@@ -83,87 +83,132 @@ export function analyzeABTest(tableData) {
  * @returns {Promise<Object>} İstatistiksel anlamlılık sonuçları
  */
 export function calculateSignificance(controlSessions, controlConversions, variantSessions, variantConversions) {
-  // Eğer variantConversions variantSessions'dan fazlaysa, direkt olarak %100 dön
-  if (variantConversions > variantSessions) {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(['confidenceLevel'], function(result) {
-        const requiredConfidence = result.confidenceLevel ? result.confidenceLevel / 100 : 0.95;
-        resolve({
-          confidence: 100,
-          isSignificant: true,
-          probability: 1,
-          controlProbability: 0,
-          variantProbability: 100
-        });
-      });
-    });
-  }
-
-  // Monte Carlo simülasyonu için parametreler
-  const iterations = 100000;
-  let variantWins = 0;
-
-  // Beta dağılımı parametreleri
-  const controlAlpha = controlConversions + 1;
-  const controlBeta = controlSessions - controlConversions + 1;
-  const variantAlpha = variantConversions + 1;
-  const variantBeta = variantSessions - variantConversions + 1;
-
-  // Monte Carlo simülasyonu
-  for (let i = 0; i < iterations; i++) {
-    const controlMean = controlAlpha / (controlAlpha + controlBeta);
-    const controlVar = (controlAlpha * controlBeta) / (Math.pow(controlAlpha + controlBeta, 2) * (controlAlpha + controlBeta + 1));
-    const controlSample = normalApproximation(controlMean, Math.sqrt(controlVar));
-
-    const variantMean = variantAlpha / (variantAlpha + variantBeta);
-    const variantVar = (variantAlpha * variantBeta) / (Math.pow(variantAlpha + variantBeta, 2) * (variantAlpha + variantBeta + 1));
-    const variantSample = normalApproximation(variantMean, Math.sqrt(variantVar));
-
-    if (variantSample > controlSample) {
-      variantWins++;
+    // Giriş validasyonu
+    if (controlSessions < 0 || controlConversions < 0 || variantSessions < 0 || variantConversions < 0) {
+        return { variantProbability: 50, controlProbability: 50, significant: false };
     }
-  }
+    
+    if (controlConversions > controlSessions || variantConversions > variantSessions) {
+        return { variantProbability: 50, controlProbability: 50, significant: false };
+    }
 
-  // Varyantın ve kontrolün kazanma olasılıkları
-  const variantProbability = (variantWins / iterations) * 100;
-  const controlProbability = ((iterations - variantWins) / iterations) * 100;
+    // Monte Carlo simülasyonu - Beta dağılımından örnekleme
+    const iterations = 50000;
+    let variantWins = 0;
+    let controlWins = 0;
 
-  
-  // Güven düzeyi ve anlamlılık için kayıtlı değeri kullan
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['confidenceLevel'], function(result) {
-      const requiredConfidence = result.confidenceLevel ? result.confidenceLevel / 100 : 0.95;
-      
-      const probability = variantProbability / 100;
-      const isSignificant = probability >= requiredConfidence;
-      
-      resolve({
-        confidence: probability * 100,
-        isSignificant,
-        probability,
-        controlProbability: parseFloat(controlProbability.toFixed(1)),
-        variantProbability: parseFloat(variantProbability.toFixed(1))
-      });
+    // Beta dağılımı parametreleri (Bayesian yaklaşım)
+    const controlAlpha = controlConversions + 1;
+    const controlBeta = controlSessions - controlConversions + 1;
+    const variantAlpha = variantConversions + 1;
+    const variantBeta = variantSessions - variantConversions + 1;
+
+    for (let i = 0; i < iterations; i++) {
+        const controlSample = betaRandom(controlAlpha, controlBeta);
+        const variantSample = betaRandom(variantAlpha, variantBeta);
+
+        if (variantSample > controlSample) {
+            variantWins++;
+        } else if (controlSample > variantSample) {
+            controlWins++;
+        }
+        // Eşitlik durumu variantWins ve controlWins'e eklenmez
+    }
+
+    const variantProbability = (variantWins / iterations) * 100;
+    const controlProbability = (controlWins / iterations) * 100;
+    
+    // Güven seviyesini Chrome storage'dan al
+    return new Promise((resolve) => {
+        chrome.storage.sync.get(['confidenceLevel'], (result) => {
+            const confidenceLevel = result.confidenceLevel || 95;
+            
+            // Hem pozitif hem negatif etkileri tespit et
+            const isSignificant = variantProbability >= confidenceLevel || controlProbability >= confidenceLevel;
+            
+            resolve({
+                variantProbability: parseFloat(variantProbability.toFixed(1)),
+                controlProbability: parseFloat(controlProbability.toFixed(1)),
+                significant: isSignificant
+            });
+        });
     });
-  });
 }
 
 /**
- * Normal dağılım yaklaşımı için yardımcı fonksiyon
+ * Beta dağılımından rastgele sayı üretir
+ * @param {number} alpha - Alpha parametresi
+ * @param {number} beta - Beta parametresi
+ * @returns {number} Beta dağılımından rastgele sayı (0-1 arası)
+ */
+function betaRandom(alpha, beta) {
+  // Gamma dağılımlarından Beta dağılımı üretme
+  const x = gammaRandom(alpha, 1);
+  const y = gammaRandom(beta, 1);
+  return x / (x + y);
+}
+
+/**
+ * Gamma dağılımından rastgele sayı üretir
+ * @param {number} shape - Shape parametresi (alpha)
+ * @param {number} scale - Scale parametresi
+ * @returns {number} Gamma dağılımından rastgele sayı
+ */
+function gammaRandom(shape, scale) {
+  // Marsaglia and Tsang's method
+  if (shape < 1) {
+    // For shape < 1, use rejection method
+    return gammaRandom(shape + 1, scale) * Math.pow(Math.random(), 1 / shape);
+  }
+
+  const d = shape - 1 / 3;
+  const c = 1 / Math.sqrt(9 * d);
+  
+  while (true) {
+    let x, v;
+    
+    do {
+      x = normalRandom(0, 1);
+      v = 1 + c * x;
+    } while (v <= 0);
+    
+    v = v * v * v;
+    const u = Math.random();
+    
+    if (u < 1 - 0.0331 * x * x * x * x) {
+      return d * v * scale;
+    }
+    
+    if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) {
+      return d * v * scale;
+    }
+  }
+}
+
+/**
+ * Standart normal dağılımdan rastgele sayı üretir (Box-Muller yöntemi)
  * @param {number} mean - Ortalama
  * @param {number} stddev - Standart sapma
- * @returns {number} Normal dağılım değeri
+ * @returns {number} Normal dağılımdan rastgele sayı
  */
-export function normalApproximation(mean, stddev) {
+function normalRandom(mean, stddev) {
   let u1 = 0, u2 = 0;
   while (u1 === 0) u1 = Math.random();
   while (u2 === 0) u2 = Math.random();
   
   const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-  let result = mean + z * stddev;
-  
-  // 0-1 aralığında sınırla
-  return Math.max(0, Math.min(1, result));
+  return z * stddev + mean;
+}
+
+/**
+ * Normal dağılım yaklaşımı için yardımcı fonksiyon (deprecated - artık kullanılmıyor)
+ * @param {number} mean - Ortalama
+ * @param {number} stddev - Standart sapma
+ * @returns {number} Normal dağılım değeri
+ */
+export function normalApproximation(mean, stddev) {
+  console.warn('normalApproximation fonksiyonu deprecated - normalRandom kullanın');
+  return normalRandom(mean, stddev);
 }
 
 /**

@@ -104,7 +104,7 @@ export function getResultsTemplate(data, type='popup', metrics) {
       
       variantRows += `
         <tr class="variant-row" data-variant-index="${index}">
-            <td>Varyasyon ${index + 1} (${variant.name || ''})</td>
+            <td>${variant.name || `Varyasyon ${index + 1}`}</td>
             <td><input type="number" class="table-input" value="${variant.sessions || 0}" data-type="variant-users-${index}" /></td>
             <td><input type="number" class="table-input" value="${variant.conversions || 0}" data-type="variant-conversions-${index}" /></td>
             <td>${variantCR.toFixed(2)}%</td>
@@ -168,14 +168,12 @@ export function getResultsTemplate(data, type='popup', metrics) {
       <div class="test-details">
                       <table class="details-table">
                     <tr>
-                        <th>Page</th>
                         <th>Start Date</th>
                         <th>End Date</th>
                         <th>Test Duration</th>
                         <th>Users</th>
                     </tr>
                     <tr>
-                        <td><input type="text" class="detail-input" value="Payment" /></td>
                         <td><input type="text" class="detail-input" value="${formattedStartDate}" /></td>
                         <td>    <div class="end-date-container">
                                 <select class="end-date-select">
