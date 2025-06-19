@@ -99,15 +99,26 @@ async function copyResultsAsImage(popup, data, type = 'extension') {
     data = await formatData(JSON.parse(lastAnalysisData));
   }
 
+  // UI elementlerini screenshot için hazırla
   document.querySelector('#conclusion-input-copy').innerHTML = document.querySelector('#conclusion-input').value;
   document.querySelector('#conclusion-input-copy').style.display = 'block';
   document.querySelector('#conclusion-input').style.display = 'none';
   document.querySelector('.action-buttons').style.display = 'none';
   document.querySelector('.select-arrow').style.display = 'none';
-  console.log("type",type);
   
-
+  // Monthly ve Yearly sütunlarını gizle (7. ve 8. sütunlar)
   const popupElement = document.querySelector('.abtest-popup');
+  const monthlyHeaders = popupElement.querySelectorAll('th:nth-child(7)'); // 7. sütun: Monthly
+  const yearlyHeaders = popupElement.querySelectorAll('th:nth-child(8)'); // 8. sütun: Yearly
+  const monthlyCells = popupElement.querySelectorAll('td:nth-child(7)'); // 7. sütun: Monthly
+  const yearlyCells = popupElement.querySelectorAll('td:nth-child(8)'); // 8. sütun: Yearly
+  
+  // Gizle
+  monthlyHeaders.forEach(header => header.style.display = 'none');
+  yearlyHeaders.forEach(header => header.style.display = 'none');
+  monthlyCells.forEach(cell => cell.style.display = 'none');
+  yearlyCells.forEach(cell => cell.style.display = 'none');
+
   // html2canvas is now available globally
   html2canvas(popupElement, {
     backgroundColor: '#ffffff',
@@ -132,10 +143,17 @@ async function copyResultsAsImage(popup, data, type = 'extension') {
   }).catch(err => {
     showNotification('Görüntü oluşturulurken hata oluştu: ' + err.message, 'error');
   }).finally(() => {
+    // UI elementlerini eski haline getir
     document.querySelector('.action-buttons').style.display = 'flex';
     document.querySelector('.select-arrow').style.display = 'flex';
     document.querySelector('#conclusion-input').style.display = 'block';
     document.querySelector('#conclusion-input-copy').style.display = 'none';
+    
+    // Monthly ve Yearly sütunlarını tekrar göster
+    monthlyHeaders.forEach(header => header.style.display = '');
+    yearlyHeaders.forEach(header => header.style.display = '');
+    monthlyCells.forEach(cell => cell.style.display = '');
+    yearlyCells.forEach(cell => cell.style.display = '');
   });
 }
 

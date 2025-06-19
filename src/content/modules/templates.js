@@ -2,6 +2,8 @@
  * HTML şablonları
  */
 
+import { calculateBinaryWinnerProbabilities, calculateExtraTransactions } from './statistics.js';
+
 /**
  * Metin uzunluğunu kısaltma yardımcı fonksiyonu
  * @param {string} text - Kısaltılacak metin
@@ -27,9 +29,9 @@
  * @param {Object} data - Gösterilecek veriler
  * @param {string} type - Gösterim tipi ('popup' veya 'listing')
  * @param {Array} metrics - Metrik isimleri listesi (listing tipi için)
- * @returns {string} HTML içeriği
+ * @returns {Promise<string>} HTML içeriği
  */
-export function getResultsTemplate(data, type='popup', metrics) {
+export async function getResultsTemplate(data, type='popup', metrics) {
 
     // {
     //     "_id": "67d184f595f2981e2e55e94d",
@@ -78,6 +80,16 @@ export function getResultsTemplate(data, type='popup', metrics) {
     
   const { reportName, dateRange, analysis, formattedStartDate, formattedEndDate, testDuration, resultStatus, sessionTab, conversionTab, bussinessImpact } = data;
   
+  // Calculate binary winner probabilities for all variants (each vs control)
+  const binaryWinnerProbabilities = await calculateBinaryWinnerProbabilities(analysis);
+  
+  // Helper function to get winner probability for a specific variant (binary comparison)
+  const getBinaryWinnerProbability = (variantName) => {
+    if (!binaryWinnerProbabilities) return 0;
+    const binaryResult = binaryWinnerProbabilities.find(result => result.variantName === variantName);
+    return binaryResult ? (binaryResult.variantWinProbability * 100) : 0;
+  };
+  
   // Varyantların dinnamik olarak oluşturulması
   let variantRows = '';
   
@@ -100,7 +112,19 @@ export function getResultsTemplate(data, type='popup', metrics) {
         ? variant.improvement 
         : calculateUplift(variantCR, controlCR);
         
-      const significanceValue = variant.stats?.variantProbability || 0;
+      // Get binary winner probability for this variant (vs control only)
+      const variantName = variant.name || `Varyasyon ${index + 1}`;
+      const significanceValue = getBinaryWinnerProbability(variantName);
+      
+      // Calculate extra transactions for this variant
+      const extraTransactions = calculateExtraTransactions(
+        analysis.control?.conversions || 0,
+        analysis.control?.sessions || 0,
+        variant.conversions || 0,
+        variant.sessions || 0,
+        1000, // Default daily traffic
+        0.5   // Default traffic split (50%)
+      );
       
       variantRows += `
         <tr class="variant-row" data-variant-index="${index}">
@@ -109,7 +133,9 @@ export function getResultsTemplate(data, type='popup', metrics) {
             <td><input type="number" class="table-input" value="${variant.conversions || 0}" data-type="variant-conversions-${index}" /></td>
             <td>${variantCR.toFixed(2)}%</td>
             <td class="metric-change ${uplift >= 0 ? 'positive' : 'negative'}">${uplift.toFixed(2)}%</td>
-            <td>${significanceValue}%</td>
+            <td>${significanceValue.toFixed(1)}%</td>
+            <td class="metric-change ${extraTransactions.monthlyExtraTransactions >= 0 ? 'positive' : 'negative'}">${Math.round(extraTransactions.monthlyExtraTransactions).toLocaleString()}</td>
+            <td class="metric-change ${extraTransactions.yearlyExtraTransactions >= 0 ? 'positive' : 'negative'}">${Math.round(extraTransactions.yearlyExtraTransactions).toLocaleString()}</td>
         </tr>
       `;
     });
@@ -123,7 +149,19 @@ export function getResultsTemplate(data, type='popup', metrics) {
       ? analysis.improvement 
       : calculateUplift(variantCR, controlCR);
       
-    const significanceValue = analysis.stats?.variantProbability || 0;
+    // Get binary winner probability for this variant (vs control only)
+    const variantName = analysis.variant.name || 'Varyasyon 1';
+    const significanceValue = getBinaryWinnerProbability(variantName);
+    
+    // Calculate extra transactions for this variant
+    const extraTransactions = calculateExtraTransactions(
+      analysis.control?.conversions || 0,
+      analysis.control?.sessions || 0,
+      analysis.variant.conversions || 0,
+      analysis.variant.sessions || 0,
+      1000, // Default daily traffic
+      0.5   // Default traffic split (50%)
+    );
     
     variantRows = `
       <tr class="variant-row">
@@ -132,7 +170,9 @@ export function getResultsTemplate(data, type='popup', metrics) {
           <td><input type="number" class="table-input" value="${analysis.variant.conversions || 0}" data-type="variant-conversions" /></td>
           <td>${variantCR.toFixed(2)}%</td>
           <td class="metric-change ${uplift >= 0 ? 'positive' : 'negative'}">${uplift.toFixed(2)}%</td>
-          <td>${significanceValue}%</td>
+          <td>${significanceValue.toFixed(1)}%</td>
+          <td class="metric-change ${extraTransactions.monthlyExtraTransactions >= 0 ? 'positive' : 'negative'}">${Math.round(extraTransactions.monthlyExtraTransactions).toLocaleString()}</td>
+          <td class="metric-change ${extraTransactions.yearlyExtraTransactions >= 0 ? 'positive' : 'negative'}">${Math.round(extraTransactions.yearlyExtraTransactions).toLocaleString()}</td>
       </tr>
     `;
   }
@@ -207,6 +247,8 @@ export function getResultsTemplate(data, type='popup', metrics) {
                             <th>Conv. Rate</th>
                             <th>Uplift</th>
                             <th>Signif.</th>
+                            <th>Monthly</th>
+                            <th>Yearly</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -216,7 +258,18 @@ export function getResultsTemplate(data, type='popup', metrics) {
                             <td><input type="number" class="table-input" value="${analysis.control?.conversions || 0}" data-type="control-conversions" /></td>
                             <td>${(analysis.control?.cr || 0).toFixed(2)}%</td>
                             <td>-</td>
-                            <td>${analysis.variants?.[0]?.stats?.controlProbability || (analysis.stats ? analysis.stats.controlProbability : '0')}%</td>
+                            <td>${(() => {
+                              // For control, show average win probability across all binary comparisons
+                              if (!binaryWinnerProbabilities || binaryWinnerProbabilities.length === 0) return '0.0';
+                              
+                              // Calculate average control win probability across all binary comparisons
+                              const avgControlWinProb = binaryWinnerProbabilities.reduce((sum, result) => 
+                                sum + result.controlWinProbability, 0) / binaryWinnerProbabilities.length;
+                              
+                              return (avgControlWinProb * 100).toFixed(1);
+                            })()}%</td>
+                            <td>-</td>
+                            <td>-</td>
                         </tr>
                         ${variantRows}
                     </tbody>

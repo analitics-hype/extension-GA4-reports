@@ -3,7 +3,7 @@ import { checkKPIDataAndUpdateButton, prepareAnalysisData, prepareDirectAnalysis
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
 import { waitForAllElements } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
-import { analyzeABTest, calculateSignificance, calculateTestDuration } from './statistics.js';
+import { analyzeABTest, calculateSignificance, calculateTestDuration, calculateBinaryWinnerProbabilities, calculateExtraTransactions } from './statistics.js';
 import { getResultsTemplate } from './templates.js';
 /**
  * UI bileşenleri ile ilgili fonksiyonlar
@@ -42,6 +42,17 @@ export async function recalculateResults(popup, data) {
     // Control satırını güncelle
     popup.querySelector('.control-row td:nth-child(4)').textContent = `${controlCR.toFixed(2)}%`;
     
+    // Binary winner probabilities hesapla
+    const updatedAnalysis = {
+      ...data.analysis,
+      control: {
+        ...data.analysis.control,
+        sessions: controlUsers,
+        conversions: controlConversions,
+        cr: controlCR
+      }
+    };
+    
     // Tüm varyantları güncelle
     for (let i = 0; i < data.analysis.variants.length; i++) {
       const variantRow = popup.querySelector(`[data-variant-index="${i}"]`);
@@ -58,12 +69,35 @@ export async function recalculateResults(popup, data) {
       // İstatistiksel anlamlılığı hesapla
       const stats = await calculateSignificance(controlUsers, controlConversions, variantUsers, variantConversions);
       
+      // Extra transactions hesapla
+      const extraTransactions = calculateExtraTransactions(
+        controlConversions,
+        controlUsers,
+        variantConversions,
+        variantUsers,
+        1000, // Default daily traffic
+        0.5   // Default traffic split (50%)
+      );
+
       // UI'yı güncelle
       variantRow.querySelector('td:nth-child(4)').textContent = `${variantCR.toFixed(2)}%`;
       const upliftCell = variantRow.querySelector('td:nth-child(5)');
       upliftCell.textContent = `${improvement.toFixed(2)}%`;
       upliftCell.className = improvement >= 0 ? 'metric-change positive' : 'metric-change negative';
-      variantRow.querySelector('td:last-child').textContent = `${stats.variantProbability}%`;
+      variantRow.querySelector('td:nth-child(6)').textContent = `${stats.variantProbability.toFixed(1)}%`;
+      
+      // Monthly ve Yearly sütunlarını güncelle
+      const monthlyCell = variantRow.querySelector('td:nth-child(7)');
+      if (monthlyCell) {
+        monthlyCell.textContent = Math.round(extraTransactions.monthlyExtraTransactions).toLocaleString();
+        monthlyCell.className = extraTransactions.monthlyExtraTransactions >= 0 ? 'metric-change positive' : 'metric-change negative';
+      }
+      
+      const yearlyCell = variantRow.querySelector('td:nth-child(8)');
+      if (yearlyCell) {
+        yearlyCell.textContent = Math.round(extraTransactions.yearlyExtraTransactions).toLocaleString();
+        yearlyCell.className = extraTransactions.yearlyExtraTransactions >= 0 ? 'metric-change positive' : 'metric-change negative';
+      }
       
       // Veri güncelle
       data.analysis.variants[i] = {
@@ -83,6 +117,20 @@ export async function recalculateResults(popup, data) {
       conversions: controlConversions,
       cr: controlCR
     };
+    
+    // Binary winner probabilities hesapla ve control significance güncelle
+    const binaryWinnerProbabilities = await calculateBinaryWinnerProbabilities(data.analysis);
+    if (binaryWinnerProbabilities && binaryWinnerProbabilities.length > 0) {
+      // Calculate average control win probability across all binary comparisons
+      const avgControlWinProb = binaryWinnerProbabilities.reduce((sum, result) => 
+        sum + result.controlWinProbability, 0) / binaryWinnerProbabilities.length;
+      
+      // Update control row significance (6th column now)
+      const controlSignifCell = popup.querySelector('.control-row td:nth-child(6)');
+      if (controlSignifCell) {
+        controlSignifCell.textContent = `${(avgControlWinProb * 100).toFixed(1)}%`;
+      }
+    }
     
     // Toplam kullanıcı sayısını güncelle
     let totalUsers = controlUsers;
@@ -146,6 +194,16 @@ async function recalculateSingleVariant(popup, data) {
   // İstatistiksel anlamlılığı hesapla
   const stats = await calculateSignificance(controlUsers, controlConversions, variantUsers, variantConversions);
 
+  // Extra transactions hesapla
+  const extraTransactions = calculateExtraTransactions(
+    controlConversions,
+    controlUsers,
+    variantConversions,
+    variantUsers,
+    1000, // Default daily traffic
+    0.5   // Default traffic split (50%)
+  );
+
   // Güvenilirlik seviyesini al
   const confidenceLevel = await new Promise(resolve => {
     chrome.storage.sync.get(['confidenceLevel'], function(result) {
@@ -171,8 +229,22 @@ async function recalculateSingleVariant(popup, data) {
   upliftCell.textContent = `${improvement.toFixed(2)}%`;
   upliftCell.className = improvement >= 0 ? 'metric-change positive' : 'metric-change negative';
 
-  popup.querySelector('.control-row td:last-child').textContent = `${stats.controlProbability}%`;
-  popup.querySelector('.variant-row td:last-child').textContent = `${stats.variantProbability}%`;
+  // Significance sütunları (6. sütun)
+  popup.querySelector('.control-row td:nth-child(6)').textContent = `${stats.controlProbability.toFixed(1)}%`;
+  popup.querySelector('.variant-row td:nth-child(6)').textContent = `${stats.variantProbability.toFixed(1)}%`;
+  
+  // Monthly ve Yearly sütunları (7. ve 8. sütun)
+  const variantMonthlyCell = popup.querySelector('.variant-row td:nth-child(7)');
+  if (variantMonthlyCell) {
+    variantMonthlyCell.textContent = Math.round(extraTransactions.monthlyExtraTransactions).toLocaleString();
+    variantMonthlyCell.className = extraTransactions.monthlyExtraTransactions >= 0 ? 'metric-change positive' : 'metric-change negative';
+  }
+  
+  const variantYearlyCell = popup.querySelector('.variant-row td:nth-child(8)');
+  if (variantYearlyCell) {
+    variantYearlyCell.textContent = Math.round(extraTransactions.yearlyExtraTransactions).toLocaleString();
+    variantYearlyCell.className = extraTransactions.yearlyExtraTransactions >= 0 ? 'metric-change positive' : 'metric-change negative';
+  }
 
   // Sonuç durumunu güncelle
   const resultElement = popup.querySelector('.conclusion-result');
@@ -265,8 +337,9 @@ export function showNotification(message, type = 'info', duration = 3000) {
  */
 export async function displayResults(resultDiv, data) {
   const templateData = await formatData(data);
-  // HTML şablonunu ekle
-  resultDiv.innerHTML = getResultsTemplate(templateData);
+  // HTML şablonunu ekle (async template function)
+  const templateHtml = await getResultsTemplate(templateData);
+  resultDiv.innerHTML = templateHtml;
 
   // Event listener'ları ekle
   setupResultEventListeners(resultDiv, data);

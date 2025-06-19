@@ -215,6 +215,74 @@ export function normalApproximation(mean, stddev) {
 }
 
 /**
+ * Binary winner probabilities hesaplar (her varyant vs kontrol ayrı ayrı)
+ * Frontend popup ile uyumlu olması için
+ * @param {Object} analysis - Analiz verileri
+ * @returns {Object|null} Binary winner probabilities
+ */
+export async function calculateBinaryWinnerProbabilities(analysis) {
+  if (!analysis || !analysis.control) return null;
+  
+  try {
+    const results = [];
+    
+    // Control data
+    const controlData = {
+      name: analysis.control.name || 'Control',
+      conversions: analysis.control.conversions || 0,
+      sessions: analysis.control.sessions || 0,
+      isControl: true
+    };
+
+    // Handle multiple variants or single variant
+    const variants = [];
+    if (analysis.variants && Array.isArray(analysis.variants)) {
+      analysis.variants.forEach((variant, index) => {
+        if (variant) {
+          variants.push({
+            name: variant.name || `Varyasyon ${index + 1}`,
+            conversions: variant.conversions || 0,
+            sessions: variant.sessions || 0,
+            isControl: false
+          });
+        }
+      });
+    } else if (analysis.variant) {
+      // Legacy single variant
+      variants.push({
+        name: analysis.variant.name || 'Varyasyon 1',
+        conversions: analysis.variant.conversions || 0,
+        sessions: analysis.variant.sessions || 0,
+        isControl: false
+      });
+    }
+
+    // Calculate binary comparison for each variant vs control
+    for (const variant of variants) {
+      // Calculate significance for this binary comparison
+      const binaryStats = await calculateSignificance(
+        controlData.sessions,
+        controlData.conversions,
+        variant.sessions,
+        variant.conversions
+      );
+      
+      // Store results for this variant comparison
+      results.push({
+        variantName: variant.name,
+        controlWinProbability: binaryStats.controlProbability / 100,
+        variantWinProbability: binaryStats.variantProbability / 100
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Error calculating binary winner probabilities:', error);
+    return null;
+  }
+}
+
+/**
  * Test süresini hesaplar
  * @param {string} dateRange - Tarih aralığı
  * @returns {number|null} Test süresi (gün)
@@ -263,4 +331,46 @@ export function calculateTestDuration(dateRange) {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
   return diffDays + 1; // Başlangıç gününü de dahil etmek için +1
+}
+
+/**
+ * Extra transactions hesaplar (monthly ve yearly)
+ * @param {number} controlConversions - Kontrol grubu conversions
+ * @param {number} controlSessions - Kontrol grubu sessions
+ * @param {number} variantConversions - Varyant conversions
+ * @param {number} variantSessions - Varyant sessions
+ * @param {number} dailyTraffic - Günlük trafik (default: 1000)
+ * @param {number} trafficSplit - Trafik dağılımı (default: 0.5)
+ * @returns {Object} Extra transactions data
+ */
+export function calculateExtraTransactions(controlConversions, controlSessions, variantConversions, variantSessions, dailyTraffic = 1000, trafficSplit = 0.5) {
+  try {
+    // Conversion rate'leri hesapla
+    const controlRate = controlSessions > 0 ? controlConversions / controlSessions : 0;
+    const variantRate = variantSessions > 0 ? variantConversions / variantSessions : 0;
+    
+    // Lift hesapla (absolute difference)
+    const lift = variantRate - controlRate;
+    
+    // Frontend ile tutarlı hesaplama
+    const dailyTestTraffic = dailyTraffic * trafficSplit;
+    const dailyExtraTransactions = dailyTestTraffic * lift;
+    const monthlyExtraTransactions = dailyExtraTransactions * 30;
+    const yearlyExtraTransactions = dailyExtraTransactions * 365;
+    
+    return {
+      dailyExtraTransactions,
+      monthlyExtraTransactions,
+      yearlyExtraTransactions,
+      lift: lift * 100 // Percentage lift
+    };
+  } catch (error) {
+    console.error('Error calculating extra transactions:', error);
+    return {
+      dailyExtraTransactions: 0,
+      monthlyExtraTransactions: 0,
+      yearlyExtraTransactions: 0,
+      lift: 0
+    };
+  }
 } 

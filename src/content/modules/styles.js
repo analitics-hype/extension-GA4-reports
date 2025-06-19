@@ -237,8 +237,8 @@ export function getResultsStyles() {
       background: #ffffff;
       border-radius: 8px;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      width: 1440px;
-      max-width: 95vw;
+      width: 1600px;
+      max-width: 98vw;
       max-height: 95vh;
       overflow-y: auto;
       z-index: 10000;
@@ -394,6 +394,7 @@ export function getResultsStyles() {
             border: 1px solid #dbdbdb;
             table-layout: fixed;
             text-align: center;
+            min-width: 1200px; /* Ensure table is wide enough for all columns */
         }
 
         .results-table th {
@@ -412,6 +413,47 @@ export function getResultsStyles() {
             color: #111827;
             border: 1px solid #dbdbdb;
             background: #FFFFFF;
+        }
+
+        /* Column width adjustments for new Monthly/Yearly columns */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) {
+            width: 15%; /* Variant name */
+        }
+
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) {
+            width: 12%; /* Users/Sessions */
+        }
+
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) {
+            width: 12%; /* Conversions */
+        }
+
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) {
+            width: 12%; /* Conv. Rate */
+        }
+
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) {
+            width: 10%; /* Uplift */
+        }
+
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) {
+            width: 10%; /* Signif. */
+        }
+
+        .results-table th:nth-child(7),
+        .results-table td:nth-child(7) {
+            width: 14%; /* Monthly */
+        }
+
+        .results-table th:nth-child(8),
+        .results-table td:nth-child(8) {
+            width: 15%; /* Yearly */
         }
 
       
