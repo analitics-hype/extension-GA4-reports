@@ -341,20 +341,33 @@ export function calculateTestDuration(dateRange) {
  * @param {number} variantSessions - Varyant sessions
  * @param {number} dailyTraffic - Günlük trafik (default: 1000)
  * @param {number} trafficSplit - Trafik dağılımı (default: 0.5)
+ * @param {number} testDuration - Test süresi (gün, opsiyonel)
  * @returns {Object} Extra transactions data
  */
-export function calculateExtraTransactions(controlConversions, controlSessions, variantConversions, variantSessions, dailyTraffic = 1000, trafficSplit = 0.5) {
+export function calculateExtraTransactions(controlConversions, controlSessions, variantConversions, variantSessions, dailyTraffic = 1000, trafficSplit = 0.5, testDuration = null) {
   try {
     // Conversion rate'leri hesapla
     const controlRate = controlSessions > 0 ? controlConversions / controlSessions : 0;
     const variantRate = variantSessions > 0 ? variantConversions / variantSessions : 0;
     
-    // Lift hesapla (absolute difference)
-    const lift = variantRate - controlRate;
+    // Lift hesapla
+    const absoluteLift = variantRate - controlRate; // Absolute lift
+    const relativeLift = controlRate > 0 ? (variantRate - controlRate) / controlRate : 0; // Relative lift (percentage)
     
-    // Frontend ile tutarlı hesaplama
-    const dailyTestTraffic = dailyTraffic * trafficSplit;
-    const dailyExtraTransactions = dailyTestTraffic * lift;
+    // Calculate daily total traffic (control + variant combined)
+    let dailyTotalTraffic;
+    if (testDuration && testDuration > 0) {
+      // Use actual total traffic per day from test
+      dailyTotalTraffic = (controlSessions + variantSessions) / testDuration;
+    } else {
+      // Use provided daily traffic (assuming it represents total traffic)
+      dailyTotalTraffic = dailyTraffic;
+    }
+    
+    // Calculate daily extra transactions using absolute lift
+    // If winning variant was deployed to all traffic:
+    // Daily extra = (daily total traffic * absolute lift)
+    const dailyExtraTransactions = dailyTotalTraffic * absoluteLift;
     const monthlyExtraTransactions = dailyExtraTransactions * 30;
     const yearlyExtraTransactions = dailyExtraTransactions * 365;
     
@@ -362,7 +375,7 @@ export function calculateExtraTransactions(controlConversions, controlSessions, 
       dailyExtraTransactions,
       monthlyExtraTransactions,
       yearlyExtraTransactions,
-      lift: lift * 100 // Percentage lift
+      lift: relativeLift * 100 // Percentage lift
     };
   } catch (error) {
     console.error('Error calculating extra transactions:', error);

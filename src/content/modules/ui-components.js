@@ -76,7 +76,8 @@ export async function recalculateResults(popup, data) {
         variantConversions,
         variantUsers,
         1000, // Default daily traffic
-        0.5   // Default traffic split (50%)
+        0.5,  // Default traffic split (50%)
+        data.testDuration || null // Test duration from data
       );
 
       // UI'yı güncelle
@@ -201,7 +202,8 @@ async function recalculateSingleVariant(popup, data) {
     variantConversions,
     variantUsers,
     1000, // Default daily traffic
-    0.5   // Default traffic split (50%)
+    0.5,  // Default traffic split (50%)
+    data.testDuration || null // Test duration from data
   );
 
   // Güvenilirlik seviyesini al

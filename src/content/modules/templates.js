@@ -123,7 +123,8 @@ export async function getResultsTemplate(data, type='popup', metrics) {
         variant.conversions || 0,
         variant.sessions || 0,
         1000, // Default daily traffic
-        0.5   // Default traffic split (50%)
+        0.5,  // Default traffic split (50%)
+        testDuration || null // Test duration from data
       );
       
       variantRows += `
@@ -160,7 +161,8 @@ export async function getResultsTemplate(data, type='popup', metrics) {
       analysis.variant.conversions || 0,
       analysis.variant.sessions || 0,
       1000, // Default daily traffic
-      0.5   // Default traffic split (50%)
+      0.5,  // Default traffic split (50%)
+      testDuration || null // Test duration from data
     );
     
     variantRows = `
