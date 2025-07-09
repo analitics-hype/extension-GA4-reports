@@ -41,8 +41,44 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
   });
 
   // Görüntüyü kopyalama
-  popup.querySelector('.copy-btn').addEventListener('click', () => {
-    copyResultsAsImage(popup, data, type);
+  popup.querySelector('.copy-btn').addEventListener('click', async (event) => {
+    console.log('Kopyala butonuna tıklandı - Loading başlatılıyor');
+    
+    const copyBtn = event.target.closest('.copy-btn');
+    
+    // Hemen loading state'e geç
+    const originalContent = copyBtn.innerHTML;
+    copyBtn.innerHTML = `
+      <div class="copy-loading">
+        <div class="loading-dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+    `;
+    copyBtn.disabled = true;
+    copyBtn.style.pointerEvents = 'none';
+    copyBtn.classList.add('copy-loading-active');
+    
+    console.log('Loading state aktif, kopyalama işlemi başlatılıyor');
+    
+    // DOM güncellenmesini bekle
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    try {
+      await copyResultsAsImage(popup, data, type);
+      console.log('Kopyalama işlemi tamamlandı');
+    } catch (error) {
+      console.error('Kopyalama işlemi hatası:', error);
+    } finally {
+      // Loading'i kapat
+      console.log('Loading state kapatılıyor');
+      copyBtn.innerHTML = originalContent;
+      copyBtn.disabled = false;
+      copyBtn.style.pointerEvents = '';
+      copyBtn.classList.remove('copy-loading-active');
+    }
   });
 
   // Kapatma butonu
@@ -93,67 +129,83 @@ function setupDateDropdowns() {
  * @param {Object} data - Gösterilecek veriler
  */
 async function copyResultsAsImage(popup, data, type = 'extension') {
-  const lastAnalysisData = sessionStorage.getItem('lastAnalysisData');
+  return new Promise(async (resolve, reject) => {
+    try {
+      const lastAnalysisData = sessionStorage.getItem('lastAnalysisData');
 
-  if (lastAnalysisData) {
-    data = await formatData(JSON.parse(lastAnalysisData));
-  }
+      if (lastAnalysisData) {
+        data = await formatData(JSON.parse(lastAnalysisData));
+      }
 
-  // UI elementlerini screenshot için hazırla
-  document.querySelector('#conclusion-input-copy').innerHTML = document.querySelector('#conclusion-input').value;
-  document.querySelector('#conclusion-input-copy').style.display = 'block';
-  document.querySelector('#conclusion-input').style.display = 'none';
-  document.querySelector('.action-buttons').style.display = 'none';
-  document.querySelector('.select-arrow').style.display = 'none';
-  
-  // Monthly ve Yearly sütunlarını gizle (7. ve 8. sütunlar)
-  const popupElement = document.querySelector('.abtest-popup');
-  const monthlyHeaders = popupElement.querySelectorAll('th:nth-child(7)'); // 7. sütun: Monthly
-  const yearlyHeaders = popupElement.querySelectorAll('th:nth-child(8)'); // 8. sütun: Yearly
-  const monthlyCells = popupElement.querySelectorAll('td:nth-child(7)'); // 7. sütun: Monthly
-  const yearlyCells = popupElement.querySelectorAll('td:nth-child(8)'); // 8. sütun: Yearly
-  
-  // Gizle
-  monthlyHeaders.forEach(header => header.style.display = 'none');
-  yearlyHeaders.forEach(header => header.style.display = 'none');
-  monthlyCells.forEach(cell => cell.style.display = 'none');
-  yearlyCells.forEach(cell => cell.style.display = 'none');
+      // UI elementlerini screenshot için hazırla
+      document.querySelector('#conclusion-input-copy').innerHTML = document.querySelector('#conclusion-input').value;
+      document.querySelector('#conclusion-input-copy').style.display = 'block';
+      document.querySelector('#conclusion-input').style.display = 'none';
+      document.querySelector('.action-buttons').style.display = 'none';
+      document.querySelector('.select-arrow').style.display = 'none';
+      
+      // Loading spinner'ları da gizle (screenshot için)
+      const loadingElements = document.querySelectorAll('.copy-loading, .loading-spinner');
+      loadingElements.forEach(el => el.style.display = 'none');
+      
+      // Monthly ve Yearly sütunlarını gizle (7. ve 8. sütunlar)
+      const popupElement = document.querySelector('.abtest-popup');
+      const monthlyHeaders = popupElement.querySelectorAll('th:nth-child(7)'); // 7. sütun: Monthly
+      const yearlyHeaders = popupElement.querySelectorAll('th:nth-child(8)'); // 8. sütun: Yearly
+      const monthlyCells = popupElement.querySelectorAll('td:nth-child(7)'); // 7. sütun: Monthly
+      const yearlyCells = popupElement.querySelectorAll('td:nth-child(8)'); // 8. sütun: Yearly
+      
+      // Gizle
+      monthlyHeaders.forEach(header => header.style.display = 'none');
+      yearlyHeaders.forEach(header => header.style.display = 'none');
+      monthlyCells.forEach(cell => cell.style.display = 'none');
+      yearlyCells.forEach(cell => cell.style.display = 'none');
 
-  // html2canvas is now available globally
-  html2canvas(popupElement, {
-    backgroundColor: '#ffffff',
-    scale: 2, // Better quality for retina displays
-    logging: false,
-    useCORS: true
-  }).then(canvas => {
-    canvas.toBlob(blob => {
-      navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob })
-      ]).then(() => {
-        showNotification('Görüntü panoya kopyalandı', 'success');
-        // Raporu backend'e gönder
-        
-        if (type === 'popup') {
-          sendReportToBackend(data);
-        }
+      // html2canvas is now available globally
+      html2canvas(popupElement, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Better quality for retina displays
+        logging: false,
+        useCORS: true
+      }).then(canvas => {
+        canvas.toBlob(blob => {
+          navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]).then(() => {
+            showNotification('Görüntü panoya kopyalandı', 'success');
+            // Raporu backend'e gönder
+            
+            if (type === 'popup') {
+              sendReportToBackend(data);
+            }
+            resolve();
+          }).catch(err => {
+            showNotification('Kopyalama başarısız: ' + err.message, 'error');
+            reject(err);
+          });
+        });
       }).catch(err => {
-        showNotification('Kopyalama başarısız: ' + err.message, 'error');
+        showNotification('Görüntü oluşturulurken hata oluştu: ' + err.message, 'error');
+        reject(err);
+      }).finally(() => {
+        // UI elementlerini eski haline getir
+        document.querySelector('.action-buttons').style.display = 'flex';
+        document.querySelector('.select-arrow').style.display = 'flex';
+        document.querySelector('#conclusion-input').style.display = 'block';
+        document.querySelector('#conclusion-input-copy').style.display = 'none';
+        
+        // Loading spinner'ları tekrar göster
+        loadingElements.forEach(el => el.style.display = '');
+        
+        // Monthly ve Yearly sütunlarını tekrar göster
+        monthlyHeaders.forEach(header => header.style.display = '');
+        yearlyHeaders.forEach(header => header.style.display = '');
+        monthlyCells.forEach(cell => cell.style.display = '');
+        yearlyCells.forEach(cell => cell.style.display = '');
       });
-    });
-  }).catch(err => {
-    showNotification('Görüntü oluşturulurken hata oluştu: ' + err.message, 'error');
-  }).finally(() => {
-    // UI elementlerini eski haline getir
-    document.querySelector('.action-buttons').style.display = 'flex';
-    document.querySelector('.select-arrow').style.display = 'flex';
-    document.querySelector('#conclusion-input').style.display = 'block';
-    document.querySelector('#conclusion-input-copy').style.display = 'none';
-    
-    // Monthly ve Yearly sütunlarını tekrar göster
-    monthlyHeaders.forEach(header => header.style.display = '');
-    yearlyHeaders.forEach(header => header.style.display = '');
-    monthlyCells.forEach(cell => cell.style.display = '');
-    yearlyCells.forEach(cell => cell.style.display = '');
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 

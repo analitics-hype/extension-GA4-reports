@@ -313,17 +313,79 @@ export function getResultsStyles() {
 
      .action-btn {
         cursor:pointer;
-        
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        min-height: 40px;
+        transition: all 0.2s ease;
      }
 
-       
+     .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+     }
       
         .action-btn svg {
             color: currentColor;
         }
 
-        .action-btn:hover {
+        .action-btn:hover:not(:disabled) {
             opacity: 0.9;
+        }
+
+        .copy-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            padding: 2px;
+        }
+
+        .loading-dots {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .loading-dots .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: currentColor;
+            animation: loadingDots 1.4s ease-in-out infinite both;
+        }
+
+        .loading-dots .dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dots .dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        .loading-dots .dot:nth-child(3) {
+            animation-delay: 0s;
+        }
+
+        @keyframes loadingDots {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .action-btn.copy-loading-active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            transition: all 0.2s ease;
         }
 
 

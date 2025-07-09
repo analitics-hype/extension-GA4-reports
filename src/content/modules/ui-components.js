@@ -351,6 +351,9 @@ export async function formatData(data) {
   const { reportName, dateRange, analysis, bussinessImpact } = data;
   const testDuration = calculateTestDuration(dateRange);
 
+  // testDuration'ı orijinal data objesine set et
+  data.testDuration = testDuration;
+
   const dates = dateRange.split(' - ');
   if (dates.length !== 2) return null;
 
