@@ -641,7 +641,7 @@ export function getResultsStyles() {
     min-height: 150px;
     max-height: 134px;
     font-family: inherit;
-    margin: 0 18px;
+    margin: 18px;
         }
         #conclusion-input-copy {
             display: none;
@@ -662,7 +662,7 @@ export function getResultsStyles() {
     min-height: 150px;
     max-height: 134px;
     font-family: inherit;
-    margin: 0 18px;
+    margin: 18px;
             
         }
         #conclusion-input.conclusion-input:focus {
