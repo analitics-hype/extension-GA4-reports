@@ -413,6 +413,7 @@ export async function formatData(data) {
     testDuration,
     resultStatus
   };
+  
   return templateData;
 }
 

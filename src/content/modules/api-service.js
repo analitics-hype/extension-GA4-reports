@@ -9,9 +9,6 @@ import { showNotification } from './ui-components.js';
  * @param {Object} data - Gönderilecek veriler
  */
 export async function sendReportToBackend(data) {
-  // Rapor verilerini hazırla
-  console.log("Frontend'den gelen veri:", data);
-  
   // Veriyi backend formatına dönüştür
   const backendData = {
     reportName: data.reportName,
@@ -47,8 +44,6 @@ export async function sendReportToBackend(data) {
     // ÖNEMLI: Her variant'ın kendi stats verisi korunuyor
     // Bu, variants dizisinde zaten mevcut olduğu için ekstra bir işlem gerektirmiyor
   }
-  
-  console.log("Backend'e gönderilecek veri:", backendData);
   
   // Backend API'ye gönder
   return fetch(process.env.API_URL + '/reports', {

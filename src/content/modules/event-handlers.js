@@ -42,7 +42,7 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
 
   // Raporu kaydetme
   popup.querySelector('.save-btn').addEventListener('click', async (event) => {
-    console.log('Kaydet butonuna tıklandı');
+    // console.log('Kaydet butonuna tıklandı');
     
     const saveBtn = event.target.closest('.save-btn');
     
@@ -61,7 +61,7 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
     saveBtn.style.pointerEvents = 'none';
     saveBtn.classList.add('copy-loading-active');
     
-    console.log('Loading state aktif, kaydetme işlemi başlatılıyor');
+    // console.log('Loading state aktif, kaydetme işlemi başlatılıyor');
     
     // DOM güncellenmesini bekle (loading efektinin görünmesi için)
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -69,14 +69,25 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
     try {
       // Raporu backend'e gönder
       if (type === 'popup') {
-        await sendReportToBackend(data);
-        console.log('Kaydetme işlemi başarıyla tamamlandı');
+        // Güncel bussinessImpact değerini al
+        const currentBussinessImpact = document.querySelector('#conclusion-input').value || "";
+        
+        // Önce formatData ile eksik alanları doldur
+        const dataWithBussinessImpact = {
+          ...data,
+          bussinessImpact: currentBussinessImpact
+        };
+        
+        const formattedData = await formatData(dataWithBussinessImpact);
+        
+        await sendReportToBackend(formattedData);
+        // console.log('Kaydetme işlemi başarıyla tamamlandı');
       }
     } catch (error) {
       console.error('Kaydetme işlemi hatası:', error);
     } finally {
       // Loading'i kapat
-      console.log('Loading state kapatılıyor');
+      // console.log('Loading state kapatılıyor');
       saveBtn.innerHTML = originalContent;
       saveBtn.disabled = false;
       saveBtn.style.pointerEvents = '';
@@ -86,7 +97,7 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
 
   // Görüntüyü kopyalama
   popup.querySelector('.copy-btn').addEventListener('click', async (event) => {
-    console.log('Kopyala butonuna tıklandı - Loading başlatılıyor');
+    // console.log('Kopyala butonuna tıklandı - Loading başlatılıyor');
     
     const copyBtn = event.target.closest('.copy-btn');
     
@@ -105,19 +116,19 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
     copyBtn.style.pointerEvents = 'none';
     copyBtn.classList.add('copy-loading-active');
     
-    console.log('Loading state aktif, kopyalama işlemi başlatılıyor');
+    // console.log('Loading state aktif, kopyalama işlemi başlatılıyor');
     
     // DOM güncellenmesini bekle
     await new Promise(resolve => setTimeout(resolve, 50));
     
     try {
       await copyResultsAsImage(popup, data, type);
-      console.log('Kopyalama işlemi tamamlandı');
+      // console.log('Kopyalama işlemi tamamlandı');
     } catch (error) {
       console.error('Kopyalama işlemi hatası:', error);
     } finally {
       // Loading'i kapat
-      console.log('Loading state kapatılıyor');
+      // console.log('Loading state kapatılıyor');
       copyBtn.innerHTML = originalContent;
       copyBtn.disabled = false;
       copyBtn.style.pointerEvents = '';
