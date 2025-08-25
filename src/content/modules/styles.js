@@ -603,6 +603,17 @@ export function getResultsStyles() {
             min-height: 100px;
             font-family: inherit;
             text-align:left;
+                          width: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    font-size: 16px !important;
+    color: #111827;
+    resize: none;
+    min-height: 100px;
+    max-height: 134px;
+    font-family: inherit;
+    margin: 0 18px;
             
         }
         #conclusion-input.conclusion-input:focus {
