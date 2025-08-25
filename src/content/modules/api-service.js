@@ -51,7 +51,7 @@ export async function sendReportToBackend(data) {
   console.log("Backend'e gönderilecek veri:", backendData);
   
   // Backend API'ye gönder
-  fetch(process.env.API_URL + '/reports', {
+  return fetch(process.env.API_URL + '/reports', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -62,16 +62,19 @@ export async function sendReportToBackend(data) {
   .then(data => {
     if (data.success) {
       showNotification('Rapor başarıyla kaydedildi!', 'success');
+      return { success: true, data };
     } else {
       if (data.error && data.error.includes('duplicate key error')) {
         showNotification('Bu isimde bir rapor zaten mevcut!', 'error');
       } else {
         showNotification('Rapor kaydedilirken hata oluştu: ' + (data.error || 'Bilinmeyen hata'), 'error');
       }
+      throw new Error(data.error || 'Bilinmeyen hata');
     }
   })
   .catch(error => {
     console.error('Rapor gönderilirken hata:', error);
     showNotification('Sunucu bağlantısında hata oluştu.', 'error');
+    throw error;
   });
 } 

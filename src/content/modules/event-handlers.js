@@ -40,6 +40,50 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
     exportToCSV(data);
   });
 
+  // Raporu kaydetme
+  popup.querySelector('.save-btn').addEventListener('click', async (event) => {
+    console.log('Kaydet butonuna tıklandı');
+    
+    const saveBtn = event.target.closest('.save-btn');
+    
+    // Hemen loading state'e geç
+    const originalContent = saveBtn.innerHTML;
+    saveBtn.innerHTML = `
+      <div class="copy-loading">
+        <div class="loading-dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+    `;
+    saveBtn.disabled = true;
+    saveBtn.style.pointerEvents = 'none';
+    saveBtn.classList.add('copy-loading-active');
+    
+    console.log('Loading state aktif, kaydetme işlemi başlatılıyor');
+    
+    // DOM güncellenmesini bekle (loading efektinin görünmesi için)
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    try {
+      // Raporu backend'e gönder
+      if (type === 'popup') {
+        await sendReportToBackend(data);
+        console.log('Kaydetme işlemi başarıyla tamamlandı');
+      }
+    } catch (error) {
+      console.error('Kaydetme işlemi hatası:', error);
+    } finally {
+      // Loading'i kapat
+      console.log('Loading state kapatılıyor');
+      saveBtn.innerHTML = originalContent;
+      saveBtn.disabled = false;
+      saveBtn.style.pointerEvents = '';
+      saveBtn.classList.remove('copy-loading-active');
+    }
+  });
+
   // Görüntüyü kopyalama
   popup.querySelector('.copy-btn').addEventListener('click', async (event) => {
     console.log('Kopyala butonuna tıklandı - Loading başlatılıyor');
@@ -173,11 +217,6 @@ async function copyResultsAsImage(popup, data, type = 'extension') {
             new ClipboardItem({ 'image/png': blob })
           ]).then(() => {
             showNotification('Görüntü panoya kopyalandı', 'success');
-            // Raporu backend'e gönder
-            
-            if (type === 'popup') {
-              sendReportToBackend(data);
-            }
             resolve();
           }).catch(err => {
             showNotification('Kopyalama başarısız: ' + err.message, 'error');

@@ -388,6 +388,12 @@ export function getResultsStyles() {
             transition: all 0.2s ease;
         }
 
+    
+
+        .save-btn .copy-loading .dot {
+            background-color: #ffffff;
+        }
+
 
         .details-table {
             width: 100%;

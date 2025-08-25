@@ -197,6 +197,9 @@ export async function getResultsTemplate(data, type='popup', metrics) {
           <div class="action-btn csv-btn">
                                <img src="https://useruploads.vwo.io/useruploads/529944/images/82a66a3300776ce62af68fba10f21463_group35.svg" alt="CSV" />
           </div>
+          <div class="action-btn save-btn">
+            <img src="https://useruploads.vwo.io/useruploads/529944/images/a862896ce8a0625775739d729519a144_0cb451af35031a4f1680968ddc953786group31.svg" alt="Save" />
+          </div>
           <div class="action-btn copy-btn">
             <img src="https://useruploads.vwo.io/useruploads/529944/images/0cb451af35031a4f1680968ddc953786_group3.svg" alt="Copy" />
           </div>
