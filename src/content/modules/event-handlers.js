@@ -5,7 +5,7 @@
 import { formatData, recalculateResults } from "./ui-components.js";
 import { exportToCSV } from "./ui-components.js";
 import { showNotification } from "./ui-components.js";
-import { sendReportToBackend } from "./api-service.js";
+import { sendReportToBackend, getAIComment } from "./api-service.js";
 import html2canvas from 'html2canvas';
 
 /**
@@ -38,6 +38,63 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
   // CSV indirme
   popup.querySelector('.csv-btn').addEventListener('click', () => {
     exportToCSV(data);
+  });
+
+  // AI ile yorum yapma
+  popup.querySelector('.ai-btn').addEventListener('click', async (event) => {
+    console.log('AI yorum butonuna tıklandı');
+    
+    const aiBtn = event.target.closest('.ai-btn');
+    
+    // Hemen loading state'e geç
+    const originalContent = aiBtn.innerHTML;
+    aiBtn.innerHTML = `
+      <div class="copy-loading">
+        <div class="loading-dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+    `;
+    aiBtn.disabled = true;
+    aiBtn.style.pointerEvents = 'none';
+    aiBtn.classList.add('copy-loading-active');
+    
+    console.log('AI Loading state aktif, AI yorum işlemi başlatılıyor');
+    
+    // DOM güncellenmesini bekle
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    try {
+      // Raporu AI'ya gönder
+      if (type === 'popup') {
+        // Önce formatData ile eksik alanları doldur
+        const formattedData = await formatData(data);
+        
+        const aiComment = await getAIComment(formattedData);
+        
+        // AI yorumunu business impact alanına yaz
+        const conclusionInput = document.querySelector('#conclusion-input');
+        if (conclusionInput && aiComment) {
+          conclusionInput.value = aiComment;
+          // Textarea'ya focus ver ve değişikliği tetikle
+          conclusionInput.focus();
+          conclusionInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        
+        console.log('AI yorum işlemi başarıyla tamamlandı');
+      }
+    } catch (error) {
+      console.error('AI yorum işlemi hatası:', error);
+    } finally {
+      // Loading'i kapat
+      console.log('AI Loading state kapatılıyor');
+      aiBtn.innerHTML = originalContent;
+      aiBtn.disabled = false;
+      aiBtn.style.pointerEvents = '';
+      aiBtn.classList.remove('copy-loading-active');
+    }
   });
 
   // Raporu kaydetme

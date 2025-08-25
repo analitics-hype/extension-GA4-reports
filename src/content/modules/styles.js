@@ -394,6 +394,49 @@ export function getResultsStyles() {
             background-color: #ffffff;
         }
 
+        /* AI button specific styles */
+        .ai-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ai-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            transform: translateY(-1px);
+        }
+
+        .ai-btn svg {
+            color: #ffffff;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+        }
+
+        /* AI button loading state */
+        .ai-btn.copy-loading-active {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            opacity: 0.8;
+        }
+
+        .ai-btn .copy-loading .dot {
+            background-color: #ffffff;
+        }
+
+        /* AI button pulse effect */
+        .ai-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .ai-btn:hover::before {
+            left: 100%;
+        }
+
 
         .details-table {
             width: 100%;
@@ -595,7 +638,7 @@ export function getResultsStyles() {
     font-size: 16px !important;
     color: #111827;
     resize: none;
-    min-height: 100px;
+    min-height: 150px;
     max-height: 134px;
     font-family: inherit;
     margin: 0 18px;
@@ -616,7 +659,7 @@ export function getResultsStyles() {
     font-size: 16px !important;
     color: #111827;
     resize: none;
-    min-height: 100px;
+    min-height: 150px;
     max-height: 134px;
     font-family: inherit;
     margin: 0 18px;
