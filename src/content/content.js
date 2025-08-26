@@ -87,11 +87,11 @@ function initializeExtension() {
 // Eklentiyi başlat
 initializeExtension();
 
+// Always set up message listener for extension communication
+setupMessageListener();
+
 // GA reporting features initialization (only on Google Analytics sites)
 if (isGoogleAnalyticsSite()) {
   // Sayfa yüklendiğinde extension'a hazır olduğunu bildir
   notifyPageLoaded();
-  
-  // Extension'dan gelen mesajları dinle
-  setupMessageListener();
 }
