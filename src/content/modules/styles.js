@@ -305,21 +305,16 @@ export function getResultsStyles() {
             line-height: 1.2;
         }
 
+
         .action-buttons {
             display: flex;
             gap: 12px;
             align-items: center;
         }
-
-     .action-btn {
-        cursor:pointer;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        min-height: 40px;
-        transition: all 0.2s ease;
+        .action-btn {
+            cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
      }
 
      .action-btn:disabled {
@@ -334,7 +329,7 @@ export function getResultsStyles() {
         .action-btn:hover:not(:disabled) {
             opacity: 0.9;
         }
-
+        
         .copy-loading {
             display: flex;
             align-items: center;
@@ -391,51 +386,141 @@ export function getResultsStyles() {
     
 
         .save-btn .copy-loading .dot {
-            background-color: #ffffff;
+             background-color: rgba(14, 13, 13, 0.1);
         }
 
         /* AI button specific styles */
         .ai-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            position: relative;
-            overflow: hidden;
+    display: inline-flex;
+    padding: 12px 24px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+
+    border-radius: 24px;
+    border: 1px solid #2192EF;
+    color: #0E2C2D;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
         }
 
         .ai-btn:hover:not(:disabled) {
-            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-            transform: translateY(-1px);
+            background: #2192EF;
+            color: #fff;
         }
 
         .ai-btn svg {
+            color: #0E2C2D;
+        }
+
+        /* AI button loading state */
+            .ai-btn.copy-loading-active {
+                background: #2192EF;
+                color: #fff;
+        }
+
+        .ai-btn .copy-loading .dot {
+             background-color: #fff;
+        }
+
+        /* CSV button specific styles */
+        .csv-btn {
+            display: inline-flex;
+padding: 12px 24px;
+justify-content: center;
+align-items: center;
+gap: 8px;
+border-radius: 24px;
+border: 1px solid #E8E8E8;
+color: #0E2C2D;
+font-family: sans-serif;
+font-size: 16px;
+font-style: normal;
+font-weight: 700;
+line-height: normal;
+        }
+
+        .csv-btn:hover:not(:disabled) {
+            background: #0E2C2D;
+            color: #fff;
+        }
+        .csv-btn:hover:not(:disabled) svg {
+            stroke: #fff;
+        }
+        .csv-btn svg {
+            color: #0E2C2D;
+        }
+
+        /* Save button specific styles */
+        .save-btn {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    padding: 12px 24px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border-radius: 24px;
+    border: 1px solid #E8E8E8;
+    background: #FFF;
+    color: #0E2C2D;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+        }
+
+        .save-btn:hover:not(:disabled) {
+            background: #0E2C2D;
+            color: #fff;
+        }
+        .save-btn:hover:not(:disabled) svg {
+            stroke: #fff;
+        }
+
+        .save-btn svg {
+            color: #0E2C2D;
+        }
+
+        /* Copy button specific styles */
+        .copy-btn {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    padding: 12px 24px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border-radius: 24px;
+    background: #1AAF6B;
+    color: #FFF;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    border: 1px solid #1AAF6B;
+        }
+
+        .copy-btn:hover:not(:disabled) {
+            background: #fff;
+            color: #1AAF6B;
+            border: 1px solid #1AAF6B;
+        }
+        .copy-btn:hover:not(:disabled) svg {
+        stroke: #1AAF6B;
+        }
+
+        .copy-btn svg {
             color: #ffffff;
             filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
         }
 
-        /* AI button loading state */
-        .ai-btn.copy-loading-active {
-            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-            opacity: 0.8;
-        }
-
-        .ai-btn .copy-loading .dot {
-            background-color: #ffffff;
-        }
-
-        /* AI button pulse effect */
-        .ai-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .ai-btn:hover::before {
-            left: 100%;
-        }
+        /* Close button specific styles */
 
 
         .details-table {
@@ -638,7 +723,7 @@ export function getResultsStyles() {
     font-size: 16px !important;
     color: #111827;
     resize: none;
-    min-height: 150px;
+    min-height: 100px;
     max-height: 134px;
     font-family: inherit;
     margin: 18px;
@@ -659,7 +744,7 @@ export function getResultsStyles() {
     font-size: 16px !important;
     color: #111827;
     resize: none;
-    min-height: 150px;
+    min-height: 100px;
     max-height: 134px;
     font-family: inherit;
     margin: 18px;
