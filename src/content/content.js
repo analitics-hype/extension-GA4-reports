@@ -1,5 +1,14 @@
 import {  watchUrlChanges } from "./modules/url-watcher.js";
 import { notifyPageLoaded, setupMessageListener } from "./modules/message-handlers.js";
+import { initABTestTool } from "./modules/ab-test-tool.js";
+
+// Check if current site is Google Analytics
+function isGoogleAnalyticsSite() {
+  const hostname = window.location.hostname.toLowerCase();
+  return hostname.includes('analytics.google.com') || 
+         hostname.includes('marketingplatform.google.com') ||
+         (hostname.includes('google.com') && window.location.pathname.includes('analytics'));
+}
 
 
 
@@ -14,7 +23,16 @@ function initializeExtension() {
       pushState.apply(history, arguments);
       if (currentUrl !== window.location.href) {
           currentUrl = window.location.href;
-          checkInterval = watchUrlChanges(currentUrl, checkInterval);
+          
+          // Initialize GA reporting features only on Google Analytics sites
+          if (isGoogleAnalyticsSite()) {
+            checkInterval = watchUrlChanges(currentUrl, checkInterval);
+          }
+          
+          // Initialize A/B test tool on all sites
+          setTimeout(() => {
+            initABTestTool();
+          }, 2000);
       }
   };
 
@@ -22,7 +40,16 @@ function initializeExtension() {
   window.addEventListener('popstate', () => {
       if (currentUrl !== window.location.href) {
           currentUrl = window.location.href;
-          checkInterval = watchUrlChanges(currentUrl, checkInterval);
+          
+          // Initialize GA reporting features only on Google Analytics sites
+          if (isGoogleAnalyticsSite()) {
+            checkInterval = watchUrlChanges(currentUrl, checkInterval);
+          }
+          
+          // Initialize A/B test tool on all sites
+          setTimeout(() => {
+            initABTestTool();
+          }, 2000);
       }
   });
 
@@ -30,20 +57,41 @@ function initializeExtension() {
   setInterval(() => {
       if (currentUrl !== window.location.href) {
           currentUrl = window.location.href;
-          checkInterval = watchUrlChanges(currentUrl, checkInterval);
+          
+          // Initialize GA reporting features only on Google Analytics sites
+          if (isGoogleAnalyticsSite()) {
+            checkInterval = watchUrlChanges(currentUrl, checkInterval);
+          }
+          
+          // Initialize A/B test tool on all sites
+          setTimeout(() => {
+            initABTestTool();
+          }, 2000);
       }
   }, 1000);
 
   // İlk yüklemede kontrol başlat
   console.log('İlk URL:', currentUrl);
-  checkInterval = watchUrlChanges(currentUrl, checkInterval);
+  
+  // Initialize GA reporting features only on Google Analytics sites
+  if (isGoogleAnalyticsSite()) {
+    checkInterval = watchUrlChanges(currentUrl, checkInterval);
+  }
+
+  // Initialize A/B test tool on all sites (runs independently of GA)
+  setTimeout(() => {
+    initABTestTool();
+  }, 2000); // Wait 2 seconds for page to fully load
 }
 
 // Eklentiyi başlat
 initializeExtension();
 
-// Sayfa yüklendiğinde extension'a hazır olduğunu bildir
-notifyPageLoaded();
-
-// Extension'dan gelen mesajları dinle
-setupMessageListener();
+// GA reporting features initialization (only on Google Analytics sites)
+if (isGoogleAnalyticsSite()) {
+  // Sayfa yüklendiğinde extension'a hazır olduğunu bildir
+  notifyPageLoaded();
+  
+  // Extension'dan gelen mesajları dinle
+  setupMessageListener();
+}
