@@ -102,7 +102,7 @@ export function getResultsStyles() {
             border: none;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s ease, transform 0.2s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             overflow: hidden;
             display: flex;

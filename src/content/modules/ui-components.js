@@ -640,9 +640,13 @@ export function injectAnalyzeButton() {
       switch (button.dataset.mode) {
         case 'session':
           saveKPIData(results.data, results.data.tableData, 'session');
+          // Button'ı tab ismi ile güncelle
+          updateButtonWithTabName(button, 'session');
           break;
         case 'conversion':
           saveKPIData(results.data, results.data.tableData, 'conversion');
+          // Button'ı tab ismi ile güncelle
+          updateButtonWithTabName(button, 'conversion');
           break;
         case 'topla':
           // Veri toplama fonksiyonu - gelecekte genişletilebilir
@@ -885,6 +889,38 @@ function addToplaTemizleButtons(container) {
       }
       
       container.appendChild(analyzeDataButton);
+    }
+  }
+}
+
+/**
+ * Button'ı tab ismi ile güncelle (veri kaydedildikten sonra)
+ * @param {HTMLElement} button - Güncellenecek button
+ * @param {string} type - Button tipi ('session' veya 'conversion')
+ */
+function updateButtonWithTabName(button, type) {
+  const results = getReportInfo();
+  if (!results.success) return;
+  
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  const reportName = results.data.reportName;
+  
+  if (storedData[reportName]) {
+    const dataKey = type === 'session' ? 'sessionData' : 'conversionData';
+    const data = storedData[reportName][dataKey];
+    
+    if (data && data.tabName) {
+      // Button içindeki text span'ı bul ve güncelle
+      const textSpan = button.querySelector('.button-label span');
+      if (textSpan) {
+        textSpan.textContent = data.tabName;
+        
+        // Button'a başarı efekti ekle
+        button.style.transform = 'scale(1.05)';
+        setTimeout(() => {
+          button.style.transform = 'scale(1)';
+        }, 200);
+      }
     }
   }
 }
