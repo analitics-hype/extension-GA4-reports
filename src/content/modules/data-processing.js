@@ -1,5 +1,6 @@
 /**
- * Veri işleme ile ilgili fonksiyonlar
+ * A/B Test veri işleme ile ilgili fonksiyonlar
+ * KPI verilerini kaydetme, analiz için hazırlama ve buton durumlarını yönetme
  */
 
 import { getTabName } from './data-extraction.js';
@@ -7,10 +8,10 @@ import { getResultsStyles } from './styles.js';
 import { createButton, showNotification } from './ui-components.js';
 
 /**
- * KPI verilerini kaydet
- * @param {Object} reportInfo - Rapor bilgileri
- * @param {Object} tableData - Tablo verileri
- * @param {string} type - Veri tipi (session veya conversion)
+ * KPI verilerini session storage'a kaydet
+ * @param {Object} reportInfo - GA4 rapor bilgileri (isim, tarih aralığı vb.)
+ * @param {Object} tableData - Tablo verileri (KPI'lar ve segment verileri)
+ * @param {string} type - Veri tipi ('session' veya 'conversion')
  */
 export function saveKPIData(reportInfo, tableData, type) {
   try {
@@ -27,14 +28,25 @@ export function saveKPIData(reportInfo, tableData, type) {
       segment.segment.toLowerCase().includes('control')
     );
     
-    // Varyantları bul (v0 veya control içermeyen tüm segmentler)
-    const variants = segments.filter(segment => 
-      !(segment.segment.toLowerCase().includes('v0') || 
-        segment.segment.toLowerCase().includes('control'))
-    );
+    // Varyantları bul (v0, control içermeyen ve geçerli segmentler)
+    const variants = segments.filter(segment => {
+      const segmentLower = segment.segment.toLowerCase();
+      return !(segmentLower.includes('v0') || segmentLower.includes('control')) && 
+             (segmentLower.includes('v1') || 
+              segmentLower.includes('v2') || 
+              segmentLower.includes('v3') || 
+              segmentLower.includes('variant') ||
+              segmentLower.includes('totals')); // Totals'ı geçici olarak kabul et
+    });
 
-    if (!control || variants.length === 0) {
-      throw new Error('Kontrol veya varyant grubu bulunamadı');
+    if (!control) {
+      console.error('Kontrol grubu bulunamadı. Mevcut segmentler:', segments.map(s => s.segment));
+      throw new Error('Kontrol grubu bulunamadı. V0 veya Control içeren segment gerekli.');
+    }
+    
+    if (variants.length === 0) {
+      console.error('Varyant grubu bulunamadı. Mevcut segmentler:', segments.map(s => s.segment));
+      throw new Error('Varyant grubu bulunamadı. V1, V2 veya Variant içeren segment gerekli.');
     }
 
     // Yeni veriyi hazırla
@@ -78,9 +90,9 @@ export function saveKPIData(reportInfo, tableData, type) {
     showNotification(`${type === 'session' ? 'Session' : 'Dönüşüm'} verisi "${tabName}" tabında kaydedildi.`, 'success');
 
     // Butonları güncelle
-    const buttonContainer = document.querySelector('.ga4-abtest-buttons');
-    if (buttonContainer) {
-      checkKPIDataAndUpdateButton(buttonContainer, tableData, reportInfo);
+    const mainContainer = document.querySelector('.ga4-abtest-main-container');
+    if (mainContainer) {
+      checkKPIDataAndUpdateButton(mainContainer, tableData, reportInfo);
     }
   } catch (error) {
     console.error('KPI kaydetme hatası:', error);
@@ -100,8 +112,14 @@ export function prepareAnalysisData(storedData) {
   }
 
   const reportData = storedData[reportName];
-  if (!reportData || !reportData.sessionData || !reportData.conversionData) {
-    throw new Error('Session ve dönüşüm verileri eksik');
+  if (!reportData) {
+    throw new Error(`${reportName} için veri bulunamadı. Önce Session Al ve Dönüşüm Al butonlarını kullanın.`);
+  }
+  if (!reportData.sessionData) {
+    throw new Error('Session verisi eksik. Session Al butonunu kullanın.');
+  }
+  if (!reportData.conversionData) {
+    throw new Error('Dönüşüm verisi eksik. Dönüşüm Al butonunu kullanın.');
   }
 
   const sessionData = reportData.sessionData;
@@ -119,19 +137,33 @@ export function prepareAnalysisData(storedData) {
     }
   });
   
-  // Tüm varyantları ekle
+  // Tüm varyantları ekle - sessionData'daki her varyant için conversion karşılığını bul
   for (let i = 0; i < sessionData.variants.length; i++) {
     const sessionVariant = sessionData.variants[i];
-    const conversionVariant = conversionData.variants.find(v => v.segment === sessionVariant.segment);
+    let conversionVariant = conversionData.variants.find(v => v.segment === sessionVariant.segment);
+    
+    // Eğer tam eşleşme bulunamazsa, alternatif eşleştirme dene
+    if (!conversionVariant) {
+      // V1, V2 gibi varyantlar için alternatif eşleştirme
+      if (sessionVariant.segment.toLowerCase().includes('v1')) {
+        conversionVariant = conversionData.variants.find(v => 
+          v.segment.toLowerCase().includes('v1') || 
+          v.segment.toLowerCase().includes('variant') ||
+          v.segment.toLowerCase().includes('totals') // Totals'ı V1 olarak kabul et
+        );
+      }
+    }
     
     if (conversionVariant) {
       segments.push({
-        segment: sessionVariant.segment,
+        segment: sessionVariant.segment, // Session'dan gelen segment adını kullan
         metrics: {
           'Sessions': sessionVariant.value,
           'Conversions': conversionVariant.value
         }
       });
+    } else {
+      console.warn(`Conversion karşılığı bulunamadı: ${sessionVariant.segment}`);
     }
   }
 
@@ -200,60 +232,20 @@ export function prepareDirectAnalysisData(tableData) {
 
 /**
  * KPI verilerini kontrol et ve buton durumunu güncelle
- * @param {HTMLElement} buttonContainer - Buton konteyneri
+ * Yeni yapıda artık sadece CSS stilleri eklenir, buton yönetimi UI components'da yapılır
+ * @param {HTMLElement} buttonContainer - Ana buton konteyneri
  * @param {Object} tableData - Tablo verileri
  * @param {Object} reportInfo - Rapor bilgileri
  */
 export function checkKPIDataAndUpdateButton(buttonContainer, tableData, reportInfo) {
-  // Tüm butonları temizle
-  buttonContainer.innerHTML = '';
-
-  // Storage'dan mevcut verileri al
-  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-  const currentKPIs = tableData.kpis;
-
-  if (currentKPIs.length === 2) {
-      // İki KPI varsa doğrudan analiz butonu
-      const analyzeButton = createButton('AB Test Analiz Et', 'analyze-direct');
-      buttonContainer.appendChild(analyzeButton);
-  } else if (currentKPIs.length === 1) {
-      // Session Al butonu
-      const sessionButton = createButton('Session Al', 'session');
-      if (storedData[reportInfo.reportName] && storedData[reportInfo.reportName].sessionData) {
-          const sessionLabel = document.createElement('div');
-          sessionLabel.className = 'button-label';
-          sessionLabel.textContent = storedData[reportInfo.reportName].sessionData.tabName;
-          sessionButton.appendChild(sessionLabel);
-      }
-
-      // Dönüşüm Al butonu
-      const conversionButton = createButton('Dönüşüm Al', 'conversion');
-      if (storedData[reportInfo.reportName] && storedData[reportInfo.reportName].conversionData) {
-          const conversionLabel = document.createElement('div');
-          conversionLabel.className = 'button-label';
-          conversionLabel.textContent = storedData[reportInfo.reportName].conversionData.tabName;
-          conversionButton.appendChild(conversionLabel);
-      }
-
-      // Analiz Et butonu
-      const analyzeButton = createButton('AB Test Analiz Et', 'analyze');
-      analyzeButton.disabled = !(storedData[reportInfo.reportName] && storedData[reportInfo.reportName].sessionData && storedData[reportInfo.reportName].conversionData);
-      if (analyzeButton.disabled) {
-          analyzeButton.classList.add('disabled');
-      }
-
-      buttonContainer.appendChild(sessionButton);
-      buttonContainer.appendChild(conversionButton);
-      buttonContainer.appendChild(analyzeButton);
-  }
-
-  // Buton stilleri için CSS ekle
+  // Buton stilleri için CSS ekle (sadece bir kez)
   if (document.getElementById('ga4-abtest-button-style') === null) {
-    
     const style = document.createElement('style');
     style.setAttribute('id', 'ga4-abtest-button-style');
     style.textContent = getResultsStyles();
     document.head.appendChild(style);
   }
-
+  
+  // Artık buton yönetimi UI components'da yapılıyor
+  // Bu fonksiyon sadece stil ekleme için kullanılıyor
 }

@@ -6,7 +6,7 @@ import { setupResultEventListeners } from './event-handlers.js';
 import { analyzeABTest, calculateSignificance, calculateTestDuration, calculateBinaryWinnerProbabilities, calculateExtraTransactions } from './statistics.js';
 import { getResultsTemplate } from './templates.js';
 /**
- * UI bileşenleri ile ilgili fonksiyonlar
+ * UI bileşenleri ile ilgili fonksiyonlar - A/B Test analiz araçları için
  */
 
 
@@ -476,26 +476,44 @@ export function exportToCSV(data) {
 }
 
 /**
- * Analiz butonunu ve sonuç popup'ını sayfaya ekle
+ * A/B Test analiz butonunu ve popup'ını sayfaya ekle
+ * Ana buton tıklandığında animasyonla diğer butonlar gösterilir
  */
 export function injectAnalyzeButton() {
 
   
   // Eğer butonlar zaten varsa tekrar ekleme
-  if (document.querySelector('.ga4-abtest-buttons')) {
+  if (document.querySelector('.ga4-abtest-main-container')) {
     return;
   }
 
-  // Buton container'ı oluştur
-  const buttonContainer = document.createElement('div');
-  buttonContainer.className = 'ga4-abtest-buttons';
+  // Ana konteyner oluştur
+  const mainContainer = document.createElement('div');
+  mainContainer.className = 'ga4-abtest-main-container';
   
-  // Container'ı header'a ekle
+  // Ana analiz butonu (yeşil buton)
+  const analyzeButton = document.createElement('div');
+  analyzeButton.className = 'ga4-abtest-analyze-button';
+  analyzeButton.innerHTML = `
+    <button class="ga4-abtest-button analyze-main">
+      <span>A/B Test Analizi</span>
+      <img src="https://useruploads.vwo.io/useruploads/529944/images/6d6d2d6df0f82d5d42fe6485708e4ec8_add81.svg?timestamp=1756366118182" >
+    </button>
+  `;
+  
+  // Genişleyebilir butonlar konteyneri (başlangıçta gizli)
+  const expandableContainer = document.createElement('div');
+  expandableContainer.className = 'ga4-abtest-expandable-buttons collapsed';
+  
+  // Konteynerleri ana konteyner'a ekle
+  mainContainer.appendChild(analyzeButton);
+  mainContainer.appendChild(expandableContainer);
+  
+  // Ana konteyner'ı header'a ekle
   const headerSpacer = document.querySelector('.gmp-header-spacer');
   
   if (headerSpacer) {
-    headerSpacer.parentNode.insertBefore(buttonContainer, headerSpacer.nextSibling);
-
+    headerSpacer.parentNode.insertBefore(mainContainer, headerSpacer.nextSibling);
   }
 
   // Tablo ve sekme değişikliklerini izle
@@ -526,7 +544,7 @@ export function injectAnalyzeButton() {
 
     if (shouldUpdate) {
       // Kısa bir gecikme ekleyerek DOM'un güncellenmesini bekle
-      setTimeout(() => updateButtonState(buttonContainer), 100);
+      setTimeout(() => updateButtonState(mainContainer), 100);
     }
   });
 
@@ -544,7 +562,7 @@ export function injectAnalyzeButton() {
         attributes: true
       });
       // İlk durumu ayarla
-      updateButtonState(buttonContainer);
+      updateButtonState(mainContainer);
     } else {
       console.log('Crosstab bekleniyor...');
       setTimeout(setupObserver, 500);
@@ -554,7 +572,7 @@ export function injectAnalyzeButton() {
   // Tüm elementlerin yüklenmesini bekle
   waitForAllElements((loaded) => {
     if (loaded) {
-      buttonContainer.style.display = 'inline-flex';
+      mainContainer.style.display = 'inline-flex';
       setupObserver(); // Observer'ı başlat
     }
   });
@@ -572,8 +590,42 @@ export function injectAnalyzeButton() {
   document.body.appendChild(overlay);
   document.body.appendChild(resultsPopup);
 
-  // Buton tıklamalarını dinle
-  buttonContainer.addEventListener('click', async (event) => {
+  // Ana buton tıklama fonksiyonu - animasyonla diğer butonları göster/gizle
+  analyzeButton.addEventListener('click', (event) => {
+    // Eğer tıklanan element analiz butonu değilse, normal analiz işlemini yap
+    if (!event.target.closest('.analyze-main')) {
+      return;
+    }
+    
+    const isCollapsed = expandableContainer.classList.contains('collapsed');
+    const arrow = analyzeButton.querySelector('img');
+    
+    if (isCollapsed) {
+      // Genişletme animasyonu
+      expandableContainer.classList.remove('collapsed');
+      expandableContainer.classList.add('expanded');
+      arrow.style.transform = 'rotate(90deg)';
+      
+      // Ana buton gizle ve çarpı ikonu göster
+      analyzeButton.style.display = 'none';
+      showCloseButton(mainContainer);
+
+      
+      // Mevcut KPI verilerini kontrol et ve gerekli butonları ekle
+      const results = getReportInfo();
+      if (results.success) {
+        addDataButtons(expandableContainer, results.data.tableData, results.data);
+      }
+    } else {
+      // Daraltma animasyonu
+      expandableContainer.classList.remove('expanded');
+      expandableContainer.classList.add('collapsed');
+      arrow.style.transform = 'rotate(0deg)';
+    }
+  });
+
+  // Genişleyebilir konteyner buton tıklamalarını dinle
+  expandableContainer.addEventListener('click', async (event) => {
     const button = event.target.closest('.ga4-abtest-button');
     if (!button) return;
 
@@ -591,6 +643,17 @@ export function injectAnalyzeButton() {
           break;
         case 'conversion':
           saveKPIData(results.data, results.data.tableData, 'conversion');
+          break;
+        case 'topla':
+          // Veri toplama fonksiyonu - gelecekte genişletilebilir
+          showNotification('Topla özelliği başarıyla çalıştı', 'success');
+          break;
+        case 'temizle':
+          // Veri temizleme fonksiyonu
+          sessionStorage.removeItem('ga4_abtest_data');
+          showNotification('Tüm veriler temizlendi', 'success');
+          // Temizleme sonrası buton durumunu güncelle
+          setTimeout(() => updateButtonState(mainContainer), 100);
           break;
         case 'analyze':
           if (button.disabled) {
@@ -657,15 +720,293 @@ export function injectAnalyzeButton() {
   });
 }
 
-// Buton durumunu güncelle
-function updateButtonState(buttonContainer) {
+/**
+ * Veri butonlarını (Session Al, Dönüşüm Al, Analiz Et) genişleyebilir konteynere ekle
+ * @param {HTMLElement} container - Genişleyebilir konteyner
+ * @param {Object} tableData - Tablo verileri  
+ * @param {Object} reportInfo - Rapor bilgileri
+ */
+function addDataButtons(container, tableData, reportInfo) {
+  // Mevcut tüm butonları temizle
+  const existingButtons = container.querySelectorAll('.ga4-abtest-button');
+  existingButtons.forEach(button => button.remove());
 
+  // Storage'dan mevcut verileri al
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  const currentKPIs = tableData.kpis;
+
+  if (currentKPIs.length === 2) {
+      // İki KPI varsa doğrudan analiz butonu
+      const analyzeButton = createButton('AB Test Analiz Et', 'analyze-direct');
+      container.appendChild(analyzeButton);
+  } else if (currentKPIs.length === 1) {
+      // Session Al butonu
+      const sessionButton = createButton('Session Al', 'session');
+      
+      // Always add icon and label to session button
+      const sessionLabel = document.createElement('div');
+      sessionLabel.className = 'button-label';
+      
+      // Create image element with proper styling
+      const sessionImg = document.createElement('img');
+      sessionImg.src = "https://useruploads.vwo.io/useruploads/529944/images/a0aa5148b06e41c0965a1ceb2b6b4d95_group402515601.svg?timestamp=1756368887567";
+      sessionImg.className = 'button-label-icon';
+      sessionImg.alt = 'Session icon';
+      
+      // Create text element
+      const sessionTextSpan = document.createElement('span');
+      if (storedData[reportInfo.reportName] && storedData[reportInfo.reportName].sessionData) {
+          sessionTextSpan.textContent = storedData[reportInfo.reportName].sessionData.tabName;
+      } else {
+          sessionTextSpan.textContent = 'Session Data';
+      }
+      
+      // Add both image and text to label
+      sessionLabel.appendChild(sessionImg);
+      sessionLabel.appendChild(sessionTextSpan);
+      sessionButton.appendChild(sessionLabel);
+
+      // Dönüşüm Al butonu
+      const conversionButton = createButton('Dönüşüm Al', 'conversion');
+      
+      // Always add icon and label to conversion button
+      const conversionLabel = document.createElement('div');
+      conversionLabel.className = 'button-label';
+      
+      // Create image element with proper styling
+      const conversionImg = document.createElement('img');
+      conversionImg.src = "https://useruploads.vwo.io/useruploads/529944/images/624db0d01d55e2fec22c9aed2cb68437_group402515602.svg?timestamp=1756374571001";
+      conversionImg.className = 'button-label-icon';
+      conversionImg.alt = 'Conversion icon';
+      
+      // Create text element
+      const conversionTextSpan = document.createElement('span');
+      if (storedData[reportInfo.reportName] && storedData[reportInfo.reportName].conversionData) {
+          conversionTextSpan.textContent = storedData[reportInfo.reportName].conversionData.tabName;
+      } else {
+          conversionTextSpan.textContent = 'Conversion Data';
+      }
+      
+      // Add both image and text to label
+      conversionLabel.appendChild(conversionImg);
+      conversionLabel.appendChild(conversionTextSpan);
+      conversionButton.appendChild(conversionLabel);
+
+      // Butonları sırayla ekle: Session, Conversion
+      container.appendChild(sessionButton);
+      container.appendChild(conversionButton);
+  }
   
+  // Topla ve Temizle butonlarını en sona ekle
+  addToplaTemizleButtons(container);
+}
+
+/**
+ * Topla, Temizle ve Analiz Et butonlarını container'a ekle
+ * @param {HTMLElement} container - Button container
+ */
+function addToplaTemizleButtons(container) {
+  // Topla ve Temizle butonlarını ekle (eğer yoksa)
+  const hasTopla = container.querySelector('.topla-button');
+  const hasTemizle = container.querySelector('.temizle-button');
+  
+  if (!hasTopla) {
+    const toplaButton = createButton('Topla', 'topla');
+    toplaButton.classList.add('topla-button');
+    
+    // Add icon and label to Topla button
+    const toplaLabel = document.createElement('div');
+    toplaLabel.className = 'button-label';
+    
+    // Create image element for Topla button
+    const toplaImg = document.createElement('img');
+    toplaImg.src = "https://useruploads.vwo.io/useruploads/529944/images/5316b95da0557fd6cce236e3f4c5ad9a_group402515603.svg";
+    toplaImg.className = 'button-label-icon';
+    toplaImg.alt = 'Topla icon';
+    
+    // Create text element
+    const toplaTextSpan = document.createElement('span');
+    toplaTextSpan.textContent = 'Topla';
+    
+    // Add both image and text to label (image first)
+    toplaLabel.appendChild(toplaImg);
+    toplaLabel.appendChild(toplaTextSpan);
+    toplaButton.appendChild(toplaLabel);
+    
+    // Add tooltip with dynamic date information
+    addTooltipToButton(toplaButton);
+    
+    container.appendChild(toplaButton);
+  }
+  
+  if (!hasTemizle) {
+    const temizleButton = createButton('Temizle', 'temizle');
+    temizleButton.classList.add('temizle-button');
+    
+    // Add icon and label to Temizle button
+    const temizleLabel = document.createElement('div');
+    temizleLabel.className = 'button-label';
+    
+    // Create image element for Temizle button
+    const temizleImg = document.createElement('img');
+    temizleImg.src = "https://useruploads.vwo.io/useruploads/529944/images/c7353fa6be18961df1d8296d409b2789_group402515604.svg";
+    temizleImg.className = 'button-label-icon';
+    temizleImg.alt = 'Temizle icon';
+    
+    // Create text element
+    const temizleTextSpan = document.createElement('span');
+    temizleTextSpan.textContent = 'Temizle';
+    
+    // Add both image and text to label (image first)
+    temizleLabel.appendChild(temizleImg);
+    temizleLabel.appendChild(temizleTextSpan);
+    temizleButton.appendChild(temizleLabel);
+    
+    container.appendChild(temizleButton);
+  }
+  
+  // AB Test Analiz Et butonunu en sona ekle
+  const hasAnalyze = container.querySelector('.ga4-abtest-button.analyze:not(.analyze-main):not(.analyze-direct)');
+  
+  if (!hasAnalyze) {
+    // Storage'dan mevcut verileri al
+    const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+    
+    // Rapor bilgilerini al
+    const results = getReportInfo();
+    if (results.success) {
+      const reportInfo = results.data;
+      
+      // Analiz Et butonu
+      const analyzeDataButton = createButton('Analiz Et', 'analyze');
+      analyzeDataButton.disabled = !(storedData[reportInfo.reportName] && storedData[reportInfo.reportName].sessionData && storedData[reportInfo.reportName].conversionData);
+      if (analyzeDataButton.disabled) {
+          analyzeDataButton.classList.add('disabled');
+      }
+      
+      container.appendChild(analyzeDataButton);
+    }
+  }
+}
+
+/**
+ * Button'a dinamik tooltip ekle
+ * @param {HTMLElement} button - Tooltip eklenecek button
+ */
+function addTooltipToButton(button) {
+  const results = getReportInfo();
+  if (!results.success) {
+    return; // Tarih bilgisi alınamazsa tooltip ekleme
+  }
+  
+  const dateRange = results.data.dateRange;
+  const dates = dateRange.split(' - ');
+  
+  if (dates.length === 2) {
+    const startDate = dates[0].trim();
+    const endDate = dates[1].trim();
+    
+    // Tooltip içeriği oluştur
+    const tooltipContent = `Başlangıç ve bitiş aralığı\n${startDate} - ${endDate}`;
+    
+    // Tooltip container oluştur
+    const tooltip = document.createElement('div');
+    tooltip.className = 'ga4-tooltip';
+    tooltip.textContent = tooltipContent;
+    
+    // Button'a tooltip ekle
+    button.style.position = 'relative';
+    button.appendChild(tooltip);
+    
+    // Hover event'ları ekle
+    button.addEventListener('mouseenter', () => {
+      tooltip.style.visibility = 'visible';
+      tooltip.style.opacity = '1';
+    });
+    
+    button.addEventListener('mouseleave', () => {
+      tooltip.style.visibility = 'hidden';
+      tooltip.style.opacity = '0';
+    });
+  }
+}
+
+/**
+ * Close button'u göster (Ana analiz butonu gizlendiğinde)
+ * @param {HTMLElement} mainContainer - Ana konteyner
+ */
+function showCloseButton(mainContainer) {
+  // Eğer zaten varsa, tekrar ekleme
+  if (mainContainer.querySelector('.ga4-abtest-close-button')) {
+    return;
+  }
+  
+  // Close button oluştur
+  const closeButton = document.createElement('div');
+  closeButton.className = 'ga4-abtest-close-button';
+  closeButton.innerHTML = `
+    <button class="ga4-abtest-button close-btn">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  `;
+  
+  // Ana konteyner'a ekle
+  mainContainer.appendChild(closeButton);
+  
+  // Click event ekle
+  closeButton.addEventListener('click', () => {
+    hideCloseButton(mainContainer);
+  });
+}
+
+/**
+ * Close button'u gizle ve ana analiz butonunu göster
+ * @param {HTMLElement} mainContainer - Ana konteyner
+ */
+function hideCloseButton(mainContainer) {
+  // Close button'u kaldır
+  const closeButton = mainContainer.querySelector('.ga4-abtest-close-button');
+  if (closeButton) {
+    closeButton.remove();
+  }
+  
+  // Ana analiz butonunu göster
+  const analyzeButton = mainContainer.querySelector('.ga4-abtest-analyze-button');
+  if (analyzeButton) {
+    analyzeButton.style.display = 'inline-flex';
+  }
+  
+  // Expandable container'ı kapat
+  const expandableContainer = mainContainer.querySelector('.ga4-abtest-expandable-buttons');
+  if (expandableContainer) {
+    expandableContainer.classList.remove('expanded');
+    expandableContainer.classList.add('collapsed');
+    
+    // Arrow'u sıfırla
+    const arrow = analyzeButton.querySelector('img');
+    if (arrow) {
+      arrow.style.transform = 'rotate(0deg)';
+    }
+  }
+}
+
+// Ana buton durumunu güncelle - yeni yapıda sadece CSS stillerini kontrol eder
+function updateButtonState(buttonContainer) {
   const results = getReportInfo();
   if (results.success) {
-    checkKPIDataAndUpdateButton(buttonContainer, results.data.tableData, results.data);
-    // Storage durumunu konsola yazdır
+    // Ana konteyner bul
+    const mainContainer = buttonContainer.closest('.ga4-abtest-main-container') || 
+                          buttonContainer.querySelector('.ga4-abtest-main-container') ||
+                          buttonContainer;
+    
+    // Sadece CSS stillerini ekle
+    checkKPIDataAndUpdateButton(mainContainer, results.data.tableData, results.data);
+    
+    // Storage durumunu konsola yazdır (debug için)
     const storageData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+    console.log('Mevcut storage verisi:', storageData);
   }
 }
 

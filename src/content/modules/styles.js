@@ -8,28 +8,119 @@
  */
 export function getResultsStyles() {
   return `
-   .ga4-abtest-buttons {
+         .ga4-abtest-main-container {
           display: inline-flex;
-          gap: 12px;
-          margin-left: 16px;
           align-items: center;
+          margin-left: 16px;
+          gap: 0;
       }
-      .ga4-abtest-button {
-          position: relative;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 10px 20px;
-          font-size: 14px;
-          font-weight: 600;
+      
+      .ga4-abtest-close-button {
+          display: inline-flex;
+          align-items: center;
+          margin-left: 16px;
+      }
+      
+      .ga4-abtest-button.close-btn {
+          background: #ffffff;
+          border: 1px solid #e8eaed;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           cursor: pointer;
           transition: all 0.3s ease;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
+      }
+      
+      .ga4-abtest-button.close-btn:hover {
+          background: #f8f9fa;
+          border-color: #dadce0;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      }
+      
+      .ga4-abtest-button.close-btn svg {
+          color: #5f6368;
+          transition: color 0.3s ease;
+      }
+      
+      .ga4-abtest-button.close-btn:hover svg {
+          color: #202124;
+      }
+      
+      .ga4-abtest-analyze-button {
+          display: inline-flex;
           align-items: center;
-          min-width: 120px;
+      }
+      
+      .ga4-abtest-expandable-buttons {
+          display: inline-flex;
+          gap: 12px;
+          align-items: center;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
+          max-height: 60px;
+      }
+      
+      .ga4-abtest-expandable-buttons.collapsed {
+          width: 0;
+          opacity: 0;
+          margin-left: 0;
+          gap: 0;
+          max-height: 0;
+      }
+      
+      .ga4-abtest-expandable-buttons.expanded {
+          width: auto;
+          opacity: 1;
+          margin-left: 12px;
+          animation: slideInFromRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      @keyframes slideInFromRight {
+          0% {
+              width: 0;
+              opacity: 0;
+              margin-left: 0;
+              transform: translateX(20px);
+          }
+          50% {
+              opacity: 0.5;
+          }
+          100% {
+              width: auto;
+              opacity: 1;
+              margin-left: 12px;
+              transform: translateX(0);
+          }
+      }
+      .ga4-abtest-button {
+            position: relative;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 30px;
+            background: #1BAF6D;
+            width: auto;
+            height: 45px;
+            font-size: 14px;
+            gap: 10px;
+            padding: 8px 8px 8px 15px;
+            line-height: normal;
+            color: #FFF;
+      }
+      
+      .ga4-abtest-button.analyze-toggle svg {
+          transition: transform 0.3s ease;
       }
       .ga4-abtest-button::before {
           content: '';
@@ -49,14 +140,50 @@ export function getResultsStyles() {
           transform: translateY(1px);
       }
       .ga4-abtest-button.session {
-          background: linear-gradient(135deg, #4285f4, #2b6cd4);
+            border-radius: 30px;
+            border: 1px solid #DDD;
+            background: #FFF;
+            padding: 6px 6px 6px 15px;
+            color: #0E2C2D;
       }
       .ga4-abtest-button.conversion {
-          background: linear-gradient(135deg, #34a853, #2d8f47);
+          border-radius: 30px;
+            border: 1px solid #DDD;
+            background: #FFF;
+            padding: 6px 6px 6px 15px;
+            color: #0E2C2D;
       }
       .ga4-abtest-button.analyze,
       .ga4-abtest-button.analyze-direct {
           background: linear-gradient(135deg, #ea4335, #d62516);
+      }
+      .ga4-abtest-button.topla {
+          border-radius: 30px;
+            border: 1px solid #DDD;
+            background: #FFF;
+            padding: 6px 6px 6px 15px;
+            color: #0E2C2D;
+      }
+      .ga4-abtest-button.temizle {
+          border-radius: 30px;
+            border: 1px solid #DDD;
+            background: #FFF;
+            padding: 6px 6px 6px 15px;
+            color: #0E2C2D;
+      }
+      .ga4-abtest-button.analyze-main {
+          flex-direction: row;
+          gap: 10px;
+          justify-content: center;
+          align-items: center;
+          width: 160px;
+          height: 45px;
+      }
+      
+      .ga4-abtest-button.analyze-main img {
+          transition: transform 0.3s ease;
+          width: 16px;
+          height: 16px;
       }
       .ga4-abtest-button.disabled {
           background: linear-gradient(135deg, #9aa0a6, #80868b);
@@ -64,16 +191,15 @@ export function getResultsStyles() {
           opacity: 0.8;
       }
       .button-label {
-          font-size: 11px;
-          margin-top: 6px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
           max-width: 200px;
           text-align: center;
-          font-weight: 500;
-          color: rgba(255,255,255,0.9);
-          letter-spacing: 0.2px;
+      }
+      .button-label span {
+        display: none;
+      }
+      
+      .button-label-icon {
+
       }
     
       @keyframes slideIn {
@@ -391,19 +517,20 @@ export function getResultsStyles() {
 
         /* AI button specific styles */
         .ai-btn {
-            display: inline-flex;
-            padding: 12px 24px;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            border-radius: 24px;
-            border: 1px solid #2192EF;
-            color: #0E2C2D;
-            font-family: sans-serif;
-            font-size: 16px;
-            font-style: normal;
-            font-weight: 700;
-            line-height: normal;
+    display: inline-flex;
+    padding: 12px 24px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+
+    border-radius: 24px;
+    border: 1px solid #2192EF;
+    color: #0E2C2D;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
         }
 
         .ai-btn:hover:not(:disabled) {
@@ -428,18 +555,18 @@ export function getResultsStyles() {
         /* CSV button specific styles */
         .csv-btn {
             display: inline-flex;
-            padding: 12px 24px;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            border-radius: 24px;
-            border: 1px solid #E8E8E8;
-            color: #0E2C2D;
-            font-family: sans-serif;
-            font-size: 16px;
-            font-style: normal;
-            font-weight: 700;
-            line-height: normal;
+padding: 12px 24px;
+justify-content: center;
+align-items: center;
+gap: 8px;
+border-radius: 24px;
+border: 1px solid #E8E8E8;
+color: #0E2C2D;
+font-family: sans-serif;
+font-size: 16px;
+font-style: normal;
+font-weight: 700;
+line-height: normal;
         }
 
         .csv-btn:hover:not(:disabled) {
@@ -455,22 +582,22 @@ export function getResultsStyles() {
 
         /* Save button specific styles */
         .save-btn {
-            position: relative;
-            overflow: hidden;
-            display: inline-flex;
-            padding: 12px 24px;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            border-radius: 24px;
-            border: 1px solid #E8E8E8;
-            background: #FFF;
-            color: #0E2C2D;
-            font-family: sans-serif;
-            font-size: 16px;
-            font-style: normal;
-            font-weight: 700;
-            line-height: normal;
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    padding: 12px 24px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border-radius: 24px;
+    border: 1px solid #E8E8E8;
+    background: #FFF;
+    color: #0E2C2D;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
         }
 
         .save-btn:hover:not(:disabled) {
@@ -487,22 +614,22 @@ export function getResultsStyles() {
 
         /* Copy button specific styles */
         .copy-btn {
-            position: relative;
-            overflow: hidden;
-            display: inline-flex;
-            padding: 12px 24px;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            border-radius: 24px;
-            background: #1AAF6B;
-            color: #FFF;
-            font-family: sans-serif;
-            font-size: 16px;
-            font-style: normal;
-            font-weight: 700;
-            line-height: normal;
-            border: 1px solid #1AAF6B;
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    padding: 12px 24px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border-radius: 24px;
+    background: #1AAF6B;
+    color: #FFF;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    border: 1px solid #1AAF6B;
         }
 
         .copy-btn:hover:not(:disabled) {
@@ -930,6 +1057,39 @@ export function getResultsStyles() {
             background: #E8DFFF;
             border-left: 3px solid #6200EE;
             color: #6200EE;
+        }
+        
+        .ga4-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: pre-line;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            margin-bottom: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            pointer-events: none;
+            min-width: 180px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .ga4-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #333;
         }
   `;
  
