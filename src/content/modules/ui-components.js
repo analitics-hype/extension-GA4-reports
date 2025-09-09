@@ -747,54 +747,90 @@ function addDataButtons(container, tableData, reportInfo) {
       // Session Al butonu
       const sessionButton = createButton('Session Al', 'session');
       
-      // Always add icon and label to session button
-      const sessionLabel = document.createElement('div');
-      sessionLabel.className = 'button-label';
+      // Button içeriği container'ı
+      const sessionContent = document.createElement('div');
+      sessionContent.className = 'button-content';
       
-      // Create image element with proper styling
+      // Icon
       const sessionImg = document.createElement('img');
       sessionImg.src = "https://useruploads.vwo.io/useruploads/529944/images/a0aa5148b06e41c0965a1ceb2b6b4d95_group402515601.svg?timestamp=1756368887567";
-      sessionImg.className = 'button-label-icon';
+      sessionImg.className = 'button-icon';
       sessionImg.alt = 'Session icon';
       
-      // Create text element
-      const sessionTextSpan = document.createElement('span');
+      // Text container (title + subtitle)
+      const sessionTextContainer = document.createElement('div');
+      sessionTextContainer.className = 'button-text';
+      
+      // Main title
+      const sessionTitle = document.createElement('span');
+      sessionTitle.className = 'button-title';
+      sessionTitle.textContent = 'Session Al';
+      
+      // Subtitle (tab name)
+      const sessionSubtitle = document.createElement('span');
+      sessionSubtitle.className = 'button-subtitle';
       if (storedData[reportInfo.reportName] && storedData[reportInfo.reportName].sessionData) {
-          sessionTextSpan.textContent = storedData[reportInfo.reportName].sessionData.tabName;
-      } else {
-          sessionTextSpan.textContent = 'Session Data';
+          // Tab ismindeki index kısmını kaldır ve sadece ismi göster
+          const tabName = storedData[reportInfo.reportName].sessionData.tabName;
+          const cleanTabName = tabName.includes('-') ? tabName.split('-')[1] : tabName;
+          sessionSubtitle.textContent = cleanTabName;
       }
       
-      // Add both image and text to label
-      sessionLabel.appendChild(sessionImg);
-      sessionLabel.appendChild(sessionTextSpan);
-      sessionButton.appendChild(sessionLabel);
+      // Assemble text container
+      sessionTextContainer.appendChild(sessionTitle);
+      sessionTextContainer.appendChild(sessionSubtitle);
+      
+      // Assemble button content
+      sessionContent.appendChild(sessionImg);
+      sessionContent.appendChild(sessionTextContainer);
+      
+      // Clear button and add new content
+      sessionButton.innerHTML = '';
+      sessionButton.appendChild(sessionContent);
 
       // Dönüşüm Al butonu
       const conversionButton = createButton('Dönüşüm Al', 'conversion');
       
-      // Always add icon and label to conversion button
-      const conversionLabel = document.createElement('div');
-      conversionLabel.className = 'button-label';
+      // Button içeriği container'ı
+      const conversionContent = document.createElement('div');
+      conversionContent.className = 'button-content';
       
-      // Create image element with proper styling
+      // Icon
       const conversionImg = document.createElement('img');
       conversionImg.src = "https://useruploads.vwo.io/useruploads/529944/images/624db0d01d55e2fec22c9aed2cb68437_group402515602.svg?timestamp=1756374571001";
-      conversionImg.className = 'button-label-icon';
+      conversionImg.className = 'button-icon';
       conversionImg.alt = 'Conversion icon';
       
-      // Create text element
-      const conversionTextSpan = document.createElement('span');
+      // Text container (title + subtitle)
+      const conversionTextContainer = document.createElement('div');
+      conversionTextContainer.className = 'button-text';
+      
+      // Main title
+      const conversionTitle = document.createElement('span');
+      conversionTitle.className = 'button-title';
+      conversionTitle.textContent = 'Dönüşüm Al';
+      
+      // Subtitle (tab name)
+      const conversionSubtitle = document.createElement('span');
+      conversionSubtitle.className = 'button-subtitle';
       if (storedData[reportInfo.reportName] && storedData[reportInfo.reportName].conversionData) {
-          conversionTextSpan.textContent = storedData[reportInfo.reportName].conversionData.tabName;
-      } else {
-          conversionTextSpan.textContent = 'Conversion Data';
+          // Tab ismindeki index kısmını kaldır ve sadece ismi göster
+          const tabName = storedData[reportInfo.reportName].conversionData.tabName;
+          const cleanTabName = tabName.includes('-') ? tabName.split('-')[1] : tabName;
+          conversionSubtitle.textContent = cleanTabName;
       }
       
-      // Add both image and text to label
-      conversionLabel.appendChild(conversionImg);
-      conversionLabel.appendChild(conversionTextSpan);
-      conversionButton.appendChild(conversionLabel);
+      // Assemble text container
+      conversionTextContainer.appendChild(conversionTitle);
+      conversionTextContainer.appendChild(conversionSubtitle);
+      
+      // Assemble button content
+      conversionContent.appendChild(conversionImg);
+      conversionContent.appendChild(conversionTextContainer);
+      
+      // Clear button and add new content
+      conversionButton.innerHTML = '';
+      conversionButton.appendChild(conversionContent);
 
       // Butonları sırayla ekle: Session, Conversion
       container.appendChild(sessionButton);
@@ -818,24 +854,35 @@ function addToplaTemizleButtons(container) {
     const toplaButton = createButton('Topla', 'topla');
     toplaButton.classList.add('topla-button');
     
-    // Add icon and label to Topla button
-    const toplaLabel = document.createElement('div');
-    toplaLabel.className = 'button-label';
+    // Button içeriği container'ı
+    const toplaContent = document.createElement('div');
+    toplaContent.className = 'button-content';
     
-    // Create image element for Topla button
+    // Icon
     const toplaImg = document.createElement('img');
     toplaImg.src = "https://useruploads.vwo.io/useruploads/529944/images/5316b95da0557fd6cce236e3f4c5ad9a_group402515603.svg";
-    toplaImg.className = 'button-label-icon';
+    toplaImg.className = 'button-icon';
     toplaImg.alt = 'Topla icon';
     
-    // Create text element
-    const toplaTextSpan = document.createElement('span');
-    toplaTextSpan.textContent = 'Topla';
+    // Text container (sadece title, subtitle yok)
+    const toplaTextContainer = document.createElement('div');
+    toplaTextContainer.className = 'button-text';
     
-    // Add both image and text to label (image first)
-    toplaLabel.appendChild(toplaImg);
-    toplaLabel.appendChild(toplaTextSpan);
-    toplaButton.appendChild(toplaLabel);
+    // Main title
+    const toplaTitle = document.createElement('span');
+    toplaTitle.className = 'button-title';
+    toplaTitle.textContent = 'Topla';
+    
+    // Assemble text container
+    toplaTextContainer.appendChild(toplaTitle);
+    
+    // Assemble button content
+    toplaContent.appendChild(toplaImg);
+    toplaContent.appendChild(toplaTextContainer);
+    
+    // Clear button and add new content
+    toplaButton.innerHTML = '';
+    toplaButton.appendChild(toplaContent);
     
     // Add tooltip with dynamic date information
     addTooltipToButton(toplaButton);
@@ -847,24 +894,35 @@ function addToplaTemizleButtons(container) {
     const temizleButton = createButton('Temizle', 'temizle');
     temizleButton.classList.add('temizle-button');
     
-    // Add icon and label to Temizle button
-    const temizleLabel = document.createElement('div');
-    temizleLabel.className = 'button-label';
+    // Button içeriği container'ı
+    const temizleContent = document.createElement('div');
+    temizleContent.className = 'button-content';
     
-    // Create image element for Temizle button
+    // Icon
     const temizleImg = document.createElement('img');
     temizleImg.src = "https://useruploads.vwo.io/useruploads/529944/images/c7353fa6be18961df1d8296d409b2789_group402515604.svg";
-    temizleImg.className = 'button-label-icon';
+    temizleImg.className = 'button-icon';
     temizleImg.alt = 'Temizle icon';
     
-    // Create text element
-    const temizleTextSpan = document.createElement('span');
-    temizleTextSpan.textContent = 'Temizle';
+    // Text container (sadece title, subtitle yok)
+    const temizleTextContainer = document.createElement('div');
+    temizleTextContainer.className = 'button-text';
     
-    // Add both image and text to label (image first)
-    temizleLabel.appendChild(temizleImg);
-    temizleLabel.appendChild(temizleTextSpan);
-    temizleButton.appendChild(temizleLabel);
+    // Main title
+    const temizleTitle = document.createElement('span');
+    temizleTitle.className = 'button-title';
+    temizleTitle.textContent = 'Temizle';
+    
+    // Assemble text container
+    temizleTextContainer.appendChild(temizleTitle);
+    
+    // Assemble button content
+    temizleContent.appendChild(temizleImg);
+    temizleContent.appendChild(temizleTextContainer);
+    
+    // Clear button and add new content
+    temizleButton.innerHTML = '';
+    temizleButton.appendChild(temizleContent);
     
     container.appendChild(temizleButton);
   }
@@ -910,17 +968,20 @@ function updateButtonWithTabName(button, type) {
     const data = storedData[reportName][dataKey];
     
     if (data && data.tabName) {
-      // Button içindeki text span'ı bul ve güncelle
-      const textSpan = button.querySelector('.button-label span');
-      if (textSpan) {
-        textSpan.textContent = data.tabName;
-        
-        // Button'a başarı efekti ekle
-        button.style.transform = 'scale(1.05)';
-        setTimeout(() => {
-          button.style.transform = 'scale(1)';
-        }, 200);
+      // Button içindeki subtitle'ı bul ve güncelle
+      const subtitle = button.querySelector('.button-subtitle');
+      if (subtitle) {
+        // Tab ismindeki index kısmını kaldır ve sadece ismi göster
+        const cleanTabName = data.tabName.includes('-') ? data.tabName.split('-')[1] : data.tabName;
+        subtitle.textContent = cleanTabName;
       }
+      
+      // Button'a başarı efekti ekle
+      button.style.transform = 'scale(1.05)';
+      setTimeout(() => {
+        button.style.transform = 'scale(1)';
+      }, 200);
+      
     }
   }
 }

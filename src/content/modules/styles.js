@@ -107,14 +107,14 @@ export function getResultsStyles() {
             overflow: hidden;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             border-radius: 30px;
             background: #1BAF6D;
             width: auto;
+            min-width: 120px;
             height: 45px;
             font-size: 14px;
-            gap: 10px;
-            padding: 8px 8px 8px 15px;
+            padding: 8px 15px 8px 15px;
             line-height: normal;
             color: #FFF;
       }
@@ -143,14 +143,14 @@ export function getResultsStyles() {
             border-radius: 30px;
             border: 1px solid #DDD;
             background: #FFF;
-            padding: 6px 6px 6px 15px;
+            padding: 6px;
             color: #0E2C2D;
       }
       .ga4-abtest-button.conversion {
           border-radius: 30px;
             border: 1px solid #DDD;
             background: #FFF;
-            padding: 6px 6px 6px 15px;
+            padding: 6px;
             color: #0E2C2D;
       }
       .ga4-abtest-button.analyze,
@@ -161,14 +161,14 @@ export function getResultsStyles() {
           border-radius: 30px;
             border: 1px solid #DDD;
             background: #FFF;
-            padding: 6px 6px 6px 15px;
+            padding: 6px;
             color: #0E2C2D;
       }
       .ga4-abtest-button.temizle {
           border-radius: 30px;
             border: 1px solid #DDD;
             background: #FFF;
-            padding: 6px 6px 6px 15px;
+            padding: 6px;
             color: #0E2C2D;
       }
       .ga4-abtest-button.analyze-main {
@@ -190,16 +190,60 @@ export function getResultsStyles() {
           cursor: not-allowed;
           opacity: 0.8;
       }
-      .button-label {
-          max-width: 200px;
-          text-align: center;
-      }
-      .button-label span {
-        display: none;
+      /* Button content layout: icon + text horizontal */
+      .button-content {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          width: 100%;
       }
       
-      .button-label-icon {
-
+      /* Button icon (left side) */
+      .button-icon {
+          flex-shrink: 0;
+      }
+      
+      /* Button text container (right side) */
+      .button-text {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          flex: 1;
+          min-width: 0; /* Allow text to shrink */
+      }
+      
+      /* Button title (main text) */
+      .button-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: inherit;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+      }
+      
+      /* Button subtitle (tab name, smaller text below title) */
+      .button-subtitle {
+          font-size: 11px;
+          font-weight: 400;
+          color: rgba(255, 255, 255, 0.8);
+          line-height: 1.1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+          margin-top: 1px;
+          text-align: left;
+      }
+      
+      /* White buttons have different subtitle color */
+      .ga4-abtest-button.session .button-subtitle,
+      .ga4-abtest-button.conversion .button-subtitle,
+      .ga4-abtest-button.topla .button-subtitle,
+      .ga4-abtest-button.temizle .button-subtitle {
+          color: rgba(14, 44, 45, 0.6);
       }
     
       @keyframes slideIn {
