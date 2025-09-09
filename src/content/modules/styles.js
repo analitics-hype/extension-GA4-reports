@@ -111,12 +111,34 @@ export function getResultsStyles() {
             border-radius: 30px;
             background: #1BAF6D;
             width: auto;
-            min-width: 120px;
             height: 45px;
             font-size: 14px;
             padding: 8px 15px 8px 15px;
             line-height: normal;
             color: #FFF;
+      }
+      
+      /* Specific button widths */
+      .ga4-abtest-button.session {
+            width: 138px;
+      }
+      
+      .ga4-abtest-button.conversion {
+            width: 143px;
+      }
+      
+      .ga4-abtest-button.topla {
+            width: 109px;
+      }
+      
+      .ga4-abtest-button.temizle {
+            width: 116px;
+      }
+      
+      .ga4-abtest-button.analyze,
+      .ga4-abtest-button.analyze-direct {
+            width: 110px;
+            justify-content: center;
       }
       
       .ga4-abtest-button.analyze-toggle svg {
@@ -176,14 +198,14 @@ export function getResultsStyles() {
           gap: 10px;
           justify-content: center;
           align-items: center;
-          width: 160px;
+          width: 168px;
           height: 45px;
       }
       
       .ga4-abtest-button.analyze-main img {
           transition: transform 0.3s ease;
-          width: 16px;
-          height: 16px;
+          width: 24px;
+          height: 24px;
       }
       .ga4-abtest-button.disabled {
           background: linear-gradient(135deg, #9aa0a6, #80868b);
@@ -200,7 +222,9 @@ export function getResultsStyles() {
       
       /* Button icon (left side) */
       .button-icon {
-          flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
       }
       
       /* Button text container (right side) */
@@ -222,6 +246,7 @@ export function getResultsStyles() {
           overflow: hidden;
           text-overflow: ellipsis;
           width: 100%;
+          text-align: left;
       }
       
       /* Button subtitle (tab name, smaller text below title) */
