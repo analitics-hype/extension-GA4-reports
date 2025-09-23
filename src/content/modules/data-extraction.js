@@ -27,6 +27,12 @@ export function getReportInfo() {
       };
     }
     const dateRange = dateRangeElement.innerText.trim();
+    
+    console.log('🔍 [DEBUG] getReportInfo - Tarih aralığı alındı:', {
+      dateRangeElement: dateRangeElement,
+      dateRangeText: dateRange,
+      elementHTML: dateRangeElement.innerHTML
+    });
 
     // Segmentleri al
     const segmentElements = document.querySelectorAll('#segment_comparison [data-guidedhelpid="concept-chip-list-container-segment-comparison"] .chip-text-content .chip-title');

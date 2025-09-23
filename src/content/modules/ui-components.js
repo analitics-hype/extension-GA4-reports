@@ -1,5 +1,5 @@
 import { getReportInfo } from './data-extraction.js';
-import { checkKPIDataAndUpdateButton, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData } from './data-processing.js';
+import { checkKPIDataAndUpdateButton, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, consolidateData } from './data-processing.js';
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
 import { waitForAllElements } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
@@ -349,12 +349,27 @@ export async function displayResults(resultDiv, data) {
 
 export async function formatData(data) {
   const { reportName, dateRange, analysis, bussinessImpact } = data;
-  const testDuration = calculateTestDuration(dateRange);
+  
+  console.log('📅 [DEBUG] formatData - Tarih formatlanıyor:', {
+    reportName: reportName,
+    dateRange: dateRange,
+    periodCount: data.periodCount
+  });
+  
+  // Konsolide edilmiş veri ise dateRange'i kontrol et
+  let actualDateRange = dateRange;
+  
+  // Eğer konsolide edilmiş veri varsa ve farklı bir tarih aralığı varsa onu kullan
+  if (data.periodCount && data.periodCount > 1) {
+    console.log('📅 [DEBUG] Konsolide edilmiş tarih aralığı kullanılıyor:', actualDateRange);
+  }
+  
+  const testDuration = calculateTestDuration(actualDateRange);
 
   // testDuration'ı orijinal data objesine set et
   data.testDuration = testDuration;
 
-  const dates = dateRange.split(' - ');
+  const dates = actualDateRange.split(' - ');
   if (dates.length !== 2) return null;
 
   const startDate = parseTurkishDate(dates[0]);
@@ -363,6 +378,13 @@ export async function formatData(data) {
   // Tarihleri Türkçe formata çevir
   const formattedStartDate = formatDateTurkish(startDate);
   const formattedEndDate = formatDateTurkish(endDate);
+  
+  console.log('📅 [DEBUG] Formatlanmış tarihler:', {
+    actualDateRange: actualDateRange,
+    formattedStartDate: formattedStartDate,
+    formattedEndDate: formattedEndDate,
+    testDuration: testDuration
+  });
   
   // Sonuç durumu için resultStatus belirleme
   let resultStatus = '';
@@ -624,6 +646,60 @@ export function injectAnalyzeButton() {
     }
   });
 
+  // Dışarı tıklama ve ESC tuşu ile kapatma özelliği
+  function setupButtonGroupAutoClose() {
+    // Dışarıya tıklama event listener'ı
+    function handleOutsideClick(event) {
+      // Eğer expandableContainer açık değilse, işlem yapma
+      if (expandableContainer.classList.contains('collapsed')) {
+        return;
+      }
+      
+      // Eğer tıklanan element mainContainer içinde değilse, kapat
+      if (!mainContainer.contains(event.target)) {
+        console.log('📎 [DEBUG] Dışarıya tıklandı, buton grubu kapatılıyor');
+        closeButtonGroup();
+      }
+    }
+    
+    // ESC tuşu ile kapatma
+    function handleKeyPress(event) {
+      if (event.key === 'Escape' && expandableContainer.classList.contains('expanded')) {
+        console.log('📎 [DEBUG] ESC tuşu ile buton grubu kapatılıyor');
+        closeButtonGroup();
+      }
+    }
+    
+    // Buton grubunu kapatma fonksiyonu
+    function closeButtonGroup() {
+      expandableContainer.classList.remove('expanded');
+      expandableContainer.classList.add('collapsed');
+      
+      // Ana butonu yeniden göster ve close butonunu gizle
+      hideCloseButton(mainContainer);
+      
+      // Arrow'u sıfırla
+      const arrow = analyzeButton.querySelector('img');
+      if (arrow) {
+        arrow.style.transform = 'rotate(0deg)';
+      }
+    }
+    
+    // Event listener'ları ekle
+    document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyPress);
+    
+    // Cleanup için fonksiyonları kaydet
+    mainContainer._autoCloseListeners = {
+      outsideClick: handleOutsideClick,
+      keyPress: handleKeyPress,
+      close: closeButtonGroup
+    };
+  }
+  
+  // Auto-close özelliğini başlat
+  setupButtonGroupAutoClose();
+
   // Genişleyebilir konteyner buton tıklamalarını dinle
   expandableContainer.addEventListener('click', async (event) => {
     const button = event.target.closest('.ga4-abtest-button');
@@ -636,28 +712,90 @@ export function injectAnalyzeButton() {
         return;
       }
 
+      console.log('🔍 [DEBUG] Buton tıklandı:', {
+        buttonMode: button.dataset.mode,
+        reportData: results.data,
+        currentTime: new Date().toISOString()
+      });
+
       // Buton tipine göre işlem yap
       switch (button.dataset.mode) {
         case 'session':
+          console.log('📥 [DEBUG] Session butonu - Veri kaydediliyor...');
           saveKPIData(results.data, results.data.tableData, 'session');
           // Button'ı tab ismi ile güncelle
           updateButtonWithTabName(button, 'session');
           break;
         case 'conversion':
+          console.log('📥 [DEBUG] Conversion butonu - Veri kaydediliyor...');
           saveKPIData(results.data, results.data.tableData, 'conversion');
           // Button'ı tab ismi ile güncelle
           updateButtonWithTabName(button, 'conversion');
           break;
         case 'topla':
-          // Veri toplama fonksiyonu - gelecekte genişletilebilir
-          showNotification('Topla özelliği başarıyla çalıştı', 'success');
+          console.log('🔗 [DEBUG] Topla butonu tıklandı - Session storage içeriği:');
+          try {
+            const currentStorage = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+            console.log('📦 [DEBUG] Mevcut session storage:', currentStorage);
+            
+            const reportName = results.data.reportName;
+            const reportData = currentStorage[reportName];
+            
+            if (!reportData || !reportData.sessionData || !reportData.conversionData) {
+              showNotification('Toplamak için hem session hem de conversion verisi gerekli!', 'error');
+              break;
+            }
+            
+            // Veriyi konsolide et
+            const consolidatedData = consolidateData(reportData);
+            
+            // Konsolide edilmiş veriyi storage'a kaydet
+            currentStorage[reportName].consolidatedData = consolidatedData;
+            sessionStorage.setItem('ga4_abtest_data', JSON.stringify(currentStorage));
+            
+            console.log('🔗 [DEBUG] Konsolidasyon tamamlandı:', consolidatedData);
+            
+            // Topla butonunu güncelle - tarih aralığını göster
+            updateToplaButton(button, consolidatedData.dateRange, consolidatedData.periodCount);
+            
+            // Analiz Et butonunu aktif et
+            setTimeout(() => updateButtonState(mainContainer), 100);
+            
+            showNotification(`${consolidatedData.periodCount} dönem birleştirildi: ${consolidatedData.dateRange}`, 'success');
+            
+          } catch (error) {
+            console.error('🔗 [DEBUG] Topla hatası:', error);
+            showNotification('Toplarken hata oluştu: ' + error.message, 'error');
+          }
           break;
         case 'temizle':
-          // Veri temizleme fonksiyonu
-          sessionStorage.removeItem('ga4_abtest_data');
-          showNotification('Tüm veriler temizlendi', 'success');
-          // Temizleme sonrası buton durumunu güncelle
-          setTimeout(() => updateButtonState(mainContainer), 100);
+          console.log('🗑️ [DEBUG] Temizle butonu - Session storage temizleniyor...');
+          try {
+            const currentStorage = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+            console.log('📦 [DEBUG] Temizlenmeden önce storage:', currentStorage);
+            
+            const reportName = results.data.reportName;
+            
+            // Sadece mevcut rapor için temizleme yap
+            if (currentStorage[reportName]) {
+              delete currentStorage[reportName];
+              sessionStorage.setItem('ga4_abtest_data', JSON.stringify(currentStorage));
+              console.log('✅ [DEBUG] Rapor verisi temizlendi:', reportName);
+              showNotification(`"${reportName}" raporu temizlendi`, 'success');
+            } else {
+              console.log('ℹ️ [DEBUG] Temizlenecek veri bulunamadı');
+              showNotification('Temizlenecek veri bulunamadı', 'info');
+            }
+            
+            // Temizleme sonrası buton durumunu güncelle
+            setTimeout(() => updateButtonState(mainContainer), 100);
+            
+          } catch (error) {
+            console.error('🗑️ [DEBUG] Temizleme hatası:', error);
+            // Fallback - tüm storage'ı temizle
+            sessionStorage.removeItem('ga4_abtest_data');
+            showNotification('Tüm veriler temizlendi', 'success');
+          }
           break;
         case 'analyze':
           if (button.disabled) {
@@ -670,15 +808,25 @@ export function injectAnalyzeButton() {
           const analysisData = prepareAnalysisData(storedData);
           const analysis = await analyzeABTest(analysisData);
           
+          console.log('🔍 [DEBUG] displayResults çağrısı hazırlanıyor:', {
+            currentDateRange: results.data.dateRange,
+            analysisDataRange: analysisData.dateRange,
+            periodCount: analysisData.periodCount
+          });
+
           displayResults(
             document.getElementById('ga4-abtest-content'),
             {
               reportName: results.data.reportName,
-              dateRange: results.data.dateRange,
+              // Konsolide edilmiş veri varsa onu kullan, yoksa mevcut tarih aralığını kullan
+              dateRange: analysisData.dateRange || results.data.dateRange,
               sessionTab: analysisData.sessionTab.split('-')[1],
               conversionTab: analysisData.conversionTab.split('-')[1],
               analysis,
-              bussinessImpact:""
+              bussinessImpact: analysisData.bussinessImpact || "",
+              // Konsolide bilgilerini de aktar
+              periodCount: analysisData.periodCount,
+              reportName: analysisData.reportName || results.data.reportName
             }
           );
           break;
@@ -700,10 +848,29 @@ export function injectAnalyzeButton() {
           break;
       }
 
+      // Buton tıklama sonrası grup otomatik kapanma
+      if (button.dataset.mode !== 'analyze' && button.dataset.mode !== 'analyze-direct') {
+        // Session Al, Dönüşüm Al, Topla, Temizle butonları için grup kapat
+        console.log('📎 [DEBUG] Buton işlemi tamamlandı, grup kapatılıyor:', button.dataset.mode);
+        setTimeout(() => {
+          if (mainContainer._autoCloseListeners) {
+            mainContainer._autoCloseListeners.close();
+          }
+        }, 500); // 500ms bekle ki kullanıcı işlemi görsün
+      }
+
       // Popup'ı göster (analiz durumlarında)
       if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
         document.getElementById('ga4-abtest-overlay').style.display = 'block';
         document.getElementById('ga4-abtest-results').style.display = 'flex';
+        
+        // Analiz popup açıldığında da grup kapat
+        console.log('📎 [DEBUG] Analiz popup açıldı, grup kapatılıyor');
+        setTimeout(() => {
+          if (mainContainer._autoCloseListeners) {
+            mainContainer._autoCloseListeners.close();
+          }
+        }, 300);
       }
 
       // İşlem sonrası storage durumunu konsola yazdır
@@ -715,6 +882,13 @@ export function injectAnalyzeButton() {
     } catch (error) {
       console.error('İşlem hatası:', error);
       showNotification('İşlem sırasında bir hata oluştu: ' + error.message, 'error');
+      
+      // Hata durumunda da kapat
+      setTimeout(() => {
+        if (mainContainer._autoCloseListeners) {
+          mainContainer._autoCloseListeners.close();
+        }
+      }, 1500);
     }
   });
 
@@ -731,9 +905,16 @@ export function injectAnalyzeButton() {
  * @param {Object} reportInfo - Rapor bilgileri
  */
 function addDataButtons(container, tableData, reportInfo) {
-  // Mevcut tüm butonları temizle
+  // Mevcut tüm butonları temizle ve tooltip'lerini de kaldır
   const existingButtons = container.querySelectorAll('.ga4-abtest-button');
-  existingButtons.forEach(button => button.remove());
+  existingButtons.forEach(button => {
+    // Eğer button'da tooltip referansı varsa onu da temizle
+    if (button._tooltip) {
+      button._tooltip.remove();
+      button._tooltip = null;
+    }
+    button.remove();
+  });
 
   // Storage'dan mevcut verileri al
   const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
@@ -839,6 +1020,23 @@ function addDataButtons(container, tableData, reportInfo) {
   
   // Topla ve Temizle butonlarını en sona ekle
   addToplaTemizleButtons(container);
+  
+  // Her açılışta Topla butonunun durumunu güncelle
+  setTimeout(() => {
+    const toplaButton = container.querySelector('.topla-button');
+    if (toplaButton) {
+      const results = getReportInfo();
+      if (results.success) {
+        const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+        const reportData = storedData[results.data.reportName];
+        
+        if (reportData && reportData.consolidatedData) {
+          console.log('🔄 [DEBUG] Buton grubu açılışında Topla butonu güncelleniyor');
+          updateToplaButton(toplaButton, reportData.consolidatedData.dateRange, reportData.consolidatedData.periodCount);
+        }
+      }
+    }
+  }, 100);
 }
 
 /**
@@ -886,6 +1084,19 @@ function addToplaTemizleButtons(container) {
     
     // Add tooltip with dynamic date information
     addTooltipToButton(toplaButton);
+    
+    // İlk oluşturulduğunda mevcut consolidatedData kontrolü
+    const results = getReportInfo();
+    if (results.success) {
+      const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+      const reportData = storedData[results.data.reportName];
+      
+      // Eğer consolidatedData varsa butonu güncelle
+      if (reportData && reportData.consolidatedData) {
+        console.log('🔄 [DEBUG] İlk oluşturma sırasında consolidatedData bulundu, buton güncelleniyor');
+        updateToplaButton(toplaButton, reportData.consolidatedData.dateRange, reportData.consolidatedData.periodCount);
+      }
+    }
     
     container.appendChild(toplaButton);
   }
@@ -952,6 +1163,342 @@ function addToplaTemizleButtons(container) {
 }
 
 /**
+ * Topla butonuna tooltip ekle - periods listesini göster
+ * @param {HTMLElement} button - Topla butonu
+ */
+function addTooltipToButton(button) {
+  // Tooltip elementini oluştur
+  const tooltip = document.createElement('div');
+  tooltip.className = 'topla-tooltip';
+  tooltip.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: white;
+    color: #333;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    max-width: 300px;
+    white-space: normal;
+    line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e0e0e0;
+  `;
+  
+  // Arrow oku ekle
+  const arrow = document.createElement('div');
+  arrow.className = 'tooltip-arrow';
+  arrow.style.cssText = `
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid white;
+    margin-bottom: -1px;
+  `;
+  tooltip.appendChild(arrow);
+  
+  // Arrow border (gölge için)
+  const arrowBorder = document.createElement('div');
+  arrowBorder.className = 'tooltip-arrow-border';
+  arrowBorder.style.cssText = `
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 7px solid #e0e0e0;
+    margin-bottom: 0px;
+  `;
+  tooltip.appendChild(arrowBorder);
+  
+  // Tooltip'i body'e ekle (overflow problemini önlemek için)
+  document.body.appendChild(tooltip);
+  
+  // Tooltip pozisyon hesaplama fonksiyonu
+  function updateTooltipPosition() {
+    const buttonRect = button.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const arrowElement = tooltip.querySelector('.tooltip-arrow');
+    const arrowBorderElement = tooltip.querySelector('.tooltip-arrow-border');
+    
+    // Butonun altında ortalayarak konumlandır
+    let left = buttonRect.left + (buttonRect.width / 2) - (tooltipRect.width / 2);
+    let top = buttonRect.bottom + 8; // 8px boşluk
+    
+    // Ekran sınırları kontrolü
+    if (left < 10) {
+      left = 10;
+    } else if (left + tooltipRect.width > window.innerWidth - 10) {
+      left = window.innerWidth - tooltipRect.width - 10;
+    }
+    
+    if (top + tooltipRect.height > window.innerHeight - 10) {
+      // Eğer altında yer yoksa, üstte göster
+      top = buttonRect.top - tooltipRect.height - 8;
+      // Arrow'u ters çevir (tooltip üstteyken arrow aşağı bakar)
+      if (arrowElement) {
+        arrowElement.style.bottom = 'auto';
+        arrowElement.style.top = '100%';
+        arrowElement.style.borderBottom = 'none';
+        arrowElement.style.borderTop = '6px solid white';
+        arrowElement.style.marginTop = '-1px';
+        arrowElement.style.marginBottom = 'auto';
+      }
+      
+      // Arrow border'ı da güncelle
+      if (arrowBorderElement) {
+        arrowBorderElement.style.bottom = 'auto';
+        arrowBorderElement.style.top = '100%';
+        arrowBorderElement.style.borderBottom = 'none';
+        arrowBorderElement.style.borderTop = '7px solid #e0e0e0';
+        arrowBorderElement.style.marginTop = '0px';
+        arrowBorderElement.style.marginBottom = 'auto';
+      }
+    } else {
+      // Normal pozisyon (altta) - arrow tooltip'in üstünde, aşağı bakar
+      if (arrowElement) {
+        arrowElement.style.top = 'auto';
+        arrowElement.style.bottom = '100%';
+        arrowElement.style.borderTop = 'none';
+        arrowElement.style.borderBottom = '6px solid white';
+        arrowElement.style.marginBottom = '-1px';
+        arrowElement.style.marginTop = 'auto';
+      }
+      
+      // Arrow border'ı da güncelle
+      if (arrowBorderElement) {
+        arrowBorderElement.style.top = 'auto';
+        arrowBorderElement.style.bottom = '100%';
+        arrowBorderElement.style.borderTop = 'none';
+        arrowBorderElement.style.borderBottom = '7px solid #e0e0e0';
+        arrowBorderElement.style.marginBottom = '0px';
+        arrowBorderElement.style.marginTop = 'auto';
+      }
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+  
+  // Mouse events
+  button.addEventListener('mouseenter', () => {
+    updateTooltipContent(tooltip);
+    updateTooltipPosition();
+    
+    // Position güncellendikten sonra göster
+    setTimeout(() => {
+      tooltip.style.opacity = '1';
+    }, 10);
+  });
+  
+  button.addEventListener('mouseleave', () => {
+    tooltip.style.opacity = '0';
+  });
+  
+  // Scroll ve resize durumlarında pozisyonu güncelle
+  window.addEventListener('scroll', () => {
+    if (tooltip.style.opacity === '1') {
+      updateTooltipPosition();
+    }
+  });
+  
+  window.addEventListener('resize', () => {
+    if (tooltip.style.opacity === '1') {
+      updateTooltipPosition();
+    }
+  });
+  
+  // Cleanup için tooltip referansını button'a kaydet
+  button._tooltip = tooltip;
+}
+
+/**
+ * Tooltip içeriğini güncelle
+ * @param {HTMLElement} tooltip - Tooltip elementi
+ */
+function updateTooltipContent(tooltip) {
+  const results = getReportInfo();
+  if (!results.success) return;
+  
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  const reportData = storedData[results.data.reportName];
+  
+  if (!reportData) {
+    tooltip.innerHTML = `
+      <div style="font-weight: bold; margin-bottom: 4px; color: #333;">Başlangıç ve bitiş aralığı</div>
+      <div style="color: #999;">Henüz veri eklenmedi</div>
+    `;
+    tooltip.style.opacity = '1';
+    return;
+  }
+  
+  let periodsToShow = [];
+  
+  // Periods array'dan verileri al
+  if (reportData.periods && reportData.periods.length > 0) {
+    reportData.periods.forEach((period, index) => {
+      periodsToShow.push({
+        index: index + 1,
+        dateRange: period.dateRange
+      });
+    });
+  }
+  
+  // Mevcut session/conversion verilerini ekle (eğer periods'ta yoksa)
+  if (reportData.sessionData && reportData.conversionData) {
+    const currentDateRange = reportData.sessionData.dateRange;
+    const existsInPeriods = periodsToShow.some(p => p.dateRange === currentDateRange);
+    
+    if (!existsInPeriods) {
+      periodsToShow.push({
+        index: periodsToShow.length + 1,
+        dateRange: currentDateRange
+      });
+    }
+  }
+  
+  // Konsolide edilmiş veri varsa onu da göster
+  let consolidatedInfo = '';
+  if (reportData.consolidatedData) {
+    consolidatedInfo = `
+      <div style="border-top: 1px solid #e0e0e0; margin-top: 8px; padding-top: 8px;">
+        <div style="font-weight: bold; color: #2196F3;">Birleştirilmiş:</div>
+        <div style="color: #333;">${reportData.consolidatedData.dateRange}</div>
+        <div style="font-size: 10px; color: #666;">${reportData.consolidatedData.periodCount} dönem</div>
+      </div>
+    `;
+  }
+  
+  // Tooltip içeriği
+  tooltip.innerHTML = `
+    <div style="font-weight: bold; margin-bottom: 8px; color: #333;">Başlangıç ve bitiş aralığı</div>
+    ${periodsToShow.length > 0 ? 
+      periodsToShow.map(period => `
+        <div style="margin-bottom: 4px; color: #333;">
+          <span style="display: inline-block; width: 20px; color: #2196F3; font-weight: bold;">${String(period.index).padStart(2, '0')}</span>
+          ${formatDateRangeForTooltip(period.dateRange)}
+        </div>
+      `).join('') :
+      '<div style="color: #999;">Henüz veri eklenmedi</div>'
+    }
+    ${consolidatedInfo}
+  `;
+  
+  tooltip.style.opacity = '1';
+}
+
+/**
+ * Tarih aralığını tooltip için formatla
+ * @param {string} dateRange - Orijinal tarih aralığı
+ * @returns {string} Formatlanmış tarih aralığı
+ */
+function formatDateRangeForTooltip(dateRange) {
+  try {
+    // "Aug 24 - Aug 31, 2025" formatını "24.08.2025 - 31.08.2025" formatına çevir
+    const [start, end] = dateRange.split(' - ');
+    const startFormatted = formatSingleDateForTooltip(start.trim());
+    const endFormatted = formatSingleDateForTooltip(end.trim());
+    
+    return `${startFormatted} - ${endFormatted}`;
+  } catch (error) {
+    console.warn('Tarih formatlanırken hata:', error);
+    return dateRange; // Hata durumunda orijinal formatı döndür
+  }
+}
+
+/**
+ * Tek tarihi tooltip için formatla
+ * @param {string} dateStr - "Aug 24" veya "Aug 31, 2025" formatında tarih
+ * @returns {string} "24.08.2025" formatında tarih
+ */
+function formatSingleDateForTooltip(dateStr) {
+  const months = {
+    'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+    'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+    'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+  };
+  
+  // "Aug 31, 2025" veya "Aug 31" formatını parse et
+  const parts = dateStr.split(' ');
+  if (parts.length >= 2) {
+    const monthName = parts[0];
+    const day = parts[1].replace(',', '');
+    const year = parts[2] || '2025'; // Eğer yıl yoksa 2025 varsayımı
+    
+    if (months[monthName]) {
+      return `${day.padStart(2, '0')}.${months[monthName]}.${year}`;
+    }
+  }
+  
+  return dateStr; // Parse edilemezse orijinal formatı döndür
+}
+
+/**
+ * Topla butonunu güncelle - tarih aralığını göster ve tooltip'i güncelle
+ * @param {HTMLElement} button - Topla butonu
+ * @param {string} dateRange - Birleştirilmiş tarih aralığı
+ * @param {number} periodCount - Birleştirilen dönem sayısı
+ */
+function updateToplaButton(button, dateRange, periodCount) {
+  console.log('🔄 [DEBUG] Topla butonu güncelleniyor:', { dateRange, periodCount });
+  
+  // Button içeriğini güncelle
+  const buttonContent = button.querySelector('.button-content');
+  if (buttonContent) {
+    const textContainer = buttonContent.querySelector('.button-text');
+    if (textContainer) {
+      // Mevcut title'ı bul veya oluştur
+      let titleElement = textContainer.querySelector('.button-title');
+      if (!titleElement) {
+        titleElement = document.createElement('span');
+        titleElement.className = 'button-title';
+        textContainer.appendChild(titleElement);
+      }
+      
+      // Subtitle'ı bul veya oluştur
+      let subtitleElement = textContainer.querySelector('.button-subtitle');
+      if (!subtitleElement) {
+        subtitleElement = document.createElement('span');
+        subtitleElement.className = 'button-subtitle';
+        textContainer.appendChild(subtitleElement);
+      }
+      
+      // İçerikleri güncelle
+      titleElement.textContent = 'Topla';
+      subtitleElement.textContent = `${periodCount} dönem: ${dateRange}`;
+      subtitleElement.style.fontSize = '10px';
+      subtitleElement.style.color = '#666';
+      subtitleElement.style.marginTop = '2px';
+      subtitleElement.style.maxWidth = '120px';
+      subtitleElement.style.overflow = 'hidden';
+      subtitleElement.style.textOverflow = 'ellipsis';
+      subtitleElement.style.whiteSpace = 'nowrap';
+      
+      console.log('🔄 [DEBUG] Topla butonu güncellendi');
+    }
+  }
+  
+  // Tooltip içeriğini de güncelle (eğer varsa)
+  const tooltip = button.querySelector('.topla-tooltip');
+  if (tooltip) {
+    updateTooltipContent(tooltip);
+  }
+}
+
+/**
  * Button'ı tab ismi ile güncelle (veri kaydedildikten sonra)
  * @param {HTMLElement} button - Güncellenecek button
  * @param {string} type - Button tipi ('session' veya 'conversion')
@@ -986,47 +1533,6 @@ function updateButtonWithTabName(button, type) {
   }
 }
 
-/**
- * Button'a dinamik tooltip ekle
- * @param {HTMLElement} button - Tooltip eklenecek button
- */
-function addTooltipToButton(button) {
-  const results = getReportInfo();
-  if (!results.success) {
-    return; // Tarih bilgisi alınamazsa tooltip ekleme
-  }
-  
-  const dateRange = results.data.dateRange;
-  const dates = dateRange.split(' - ');
-  
-  if (dates.length === 2) {
-    const startDate = dates[0].trim();
-    const endDate = dates[1].trim();
-    
-    // Tooltip içeriği oluştur
-    const tooltipContent = `Başlangıç ve bitiş aralığı\n${startDate} - ${endDate}`;
-    
-    // Tooltip container oluştur
-    const tooltip = document.createElement('div');
-    tooltip.className = 'ga4-tooltip';
-    tooltip.textContent = tooltipContent;
-    
-    // Button'a tooltip ekle
-    button.style.position = 'relative';
-    button.appendChild(tooltip);
-    
-    // Hover event'ları ekle
-    button.addEventListener('mouseenter', () => {
-      tooltip.style.visibility = 'visible';
-      tooltip.style.opacity = '1';
-    });
-    
-    button.addEventListener('mouseleave', () => {
-      tooltip.style.visibility = 'hidden';
-      tooltip.style.opacity = '0';
-    });
-  }
-}
 
 /**
  * Close button'u göster (Ana analiz butonu gizlendiğinde)
@@ -1049,7 +1555,7 @@ function showCloseButton(mainContainer) {
   </g>
   <defs>
     <clipPath id="clip0_38_318">
-      <rect width="26" height="26" fill="white" transform="translate(19 0.615234) rotate(45)"/>
+      <rect width="26" height="26" fill="white" transform="translate(19 0.615234) rotate(135)"/>
     </clipPath>
   </defs>
 </svg>
