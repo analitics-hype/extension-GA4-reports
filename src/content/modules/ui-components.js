@@ -1734,7 +1734,7 @@ function updateButtonState(buttonContainer) {
     
     // Storage durumunu konsola yazdır (debug için)
     const storageData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-    console.log('Mevcut storage verisi:', storageData);
+    // console.log('Mevcut storage verisi:', storageData);
   }
 }
 
