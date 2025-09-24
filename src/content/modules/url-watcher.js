@@ -45,7 +45,7 @@ export function watchUrlChanges(currentUrl, checkInterval) {
     clearInterval(checkInterval);
   }
 
-  console.log('URL değişti:', window.location.href);
+  // console.log('URL değişti:', window.location.href);
 
   // Önce mevcut butonları ve elementleri temizle
   cleanupExtension(checkInterval);

@@ -74,7 +74,7 @@ function initializeExtension() {
   }, 1000);
 
   // İlk yüklemede kontrol başlat
-  console.log('İlk URL:', currentUrl);
+  // console.log('İlk URL:', currentUrl);
   
   // Initialize GA reporting features only on Google Analytics sites
   if (isGoogleAnalyticsSite()) {

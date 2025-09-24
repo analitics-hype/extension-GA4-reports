@@ -65,7 +65,7 @@ function initABTestManagement() {
         action: 'getABTestCookies'
       }, function(response) {
         if (chrome.runtime.lastError) {
-          console.log('Content script not ready or not applicable page');
+          // console.log('Content script not ready or not applicable page');
           showNoABTestMessage();
           return;
         }

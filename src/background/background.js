@@ -1,9 +1,9 @@
 // Background script - arka planda çalışan servis
-console.log('Background script loaded');
+// console.log('Background script loaded');
 
 // Eklenti ilk yüklendiğinde çalışacak kod
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Extension installed');
+  // console.log('Extension installed');
   
   // Varsayılan ayarları kaydet
   chrome.storage.local.set({
@@ -40,7 +40,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Extension yüklendiğinde çalışacak
 chrome.runtime.onInstalled.addListener(() => {
-    console.log('GA4 AB Test Analyzer yüklendi');
+    // console.log('GA4 AB Test Analyzer yüklendi');
     
     // Varsayılan ayarları kaydet
     chrome.storage.local.set({

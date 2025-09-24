@@ -42,7 +42,7 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
 
   // AI ile yorum yapma
   popup.querySelector('.ai-btn').addEventListener('click', async (event) => {
-    console.log('AI yorum butonuna tıklandı');
+    // console.log('AI yorum butonuna tıklandı');
     
     const aiBtn = event.target.closest('.ai-btn');
     
@@ -61,7 +61,7 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
     aiBtn.style.pointerEvents = 'none';
     aiBtn.classList.add('copy-loading-active');
     
-    console.log('AI Loading state aktif, AI yorum işlemi başlatılıyor');
+    // console.log('AI Loading state aktif, AI yorum işlemi başlatılıyor');
     
     // DOM güncellenmesini bekle
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -83,13 +83,13 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
           conclusionInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
         
-        console.log('AI yorum işlemi başarıyla tamamlandı');
+        // console.log('AI yorum işlemi başarıyla tamamlandı');
       }
     } catch (error) {
       console.error('AI yorum işlemi hatası:', error);
     } finally {
       // Loading'i kapat
-      console.log('AI Loading state kapatılıyor');
+      // console.log('AI Loading state kapatılıyor');
       aiBtn.innerHTML = originalContent;
       aiBtn.disabled = false;
       aiBtn.style.pointerEvents = '';

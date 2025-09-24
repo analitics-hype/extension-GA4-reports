@@ -15,16 +15,16 @@ import { createButton, showNotification } from './ui-components.js';
  */
 export function saveKPIData(reportInfo, tableData, type) {
   try {
-    console.log('🔍 [DEBUG] saveKPIData başladı:', {
-      type: type,
-      reportName: reportInfo.reportName,
-      dateRange: reportInfo.dateRange,
-      segments: reportInfo.segments,
-      tableDataKPIs: tableData.kpis
-    });
+    // // console.log('🔍 [DEBUG] saveKPIData başladı:', {
+    //   type: type,
+    //   reportName: reportInfo.reportName,
+    //   dateRange: reportInfo.dateRange,
+    //   segments: reportInfo.segments,
+    //   tableDataKPIs: tableData.kpis
+    // });
     
     const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-    console.log('🔍 [DEBUG] Mevcut session storage:', storedData);
+    // // console.log('🔍 [DEBUG] Mevcut session storage:', storedData);
     
     const currentKPI = tableData.kpis[0];
     const segments = tableData.segments;
@@ -82,7 +82,7 @@ export function saveKPIData(reportInfo, tableData, type) {
     // Önceki konsolide edilmiş veriyi periods'a taşı (eğer varsa)
     const existingReport = storedData[reportInfo.reportName];
     if (existingReport.consolidatedData) {
-      console.log('📦 [DEBUG] Önceki konsolide veri periods\'a aktarılıyor:', existingReport.consolidatedData.dateRange);
+      // console.log('📦 [DEBUG] Önceki konsolide veri periods\'a aktarılıyor:', existingReport.consolidatedData.dateRange);
       
       // periods array'i oluştur veya genişlet
       if (!existingReport.periods) {
@@ -129,9 +129,9 @@ export function saveKPIData(reportInfo, tableData, type) {
       
       if (existingPeriodIndex === -1) {
         existingReport.periods.push(periodData);
-        console.log('📦 [DEBUG] Period eklendi:', periodData.dateRange);
+        // console.log('📦 [DEBUG] Period eklendi:', periodData.dateRange);
       } else {
-        console.log('📦 [DEBUG] Period zaten mevcut:', periodData.dateRange);
+        // console.log('📦 [DEBUG] Period zaten mevcut:', periodData.dateRange);
       }
       
       // Konsolide edilmiş veriyi temizle (artık periods'ta)
@@ -157,12 +157,12 @@ export function saveKPIData(reportInfo, tableData, type) {
 
     sessionStorage.setItem('ga4_abtest_data', JSON.stringify(storedData));
     
-    console.log('🔍 [DEBUG] Kayıt tamamlandı! Güncellenmiş session storage:', {
-      type: type,
-      tabName: tabName,
-      savedData: storedData[reportInfo.reportName],
-      fullStorage: storedData
-    });
+    // console.log('🔍 [DEBUG] Kayıt tamamlandı! Güncellenmiş session storage:', {
+    //   type: type,
+    //   tabName: tabName,
+    //   savedData: storedData[reportInfo.reportName],
+    //   fullStorage: storedData
+    // });
     
     showNotification(`${type === 'session' ? 'Session' : 'Dönüşüm'} verisi "${tabName}" tabında kaydedildi.`, 'success');
 
@@ -195,7 +195,7 @@ export function prepareAnalysisData(storedData) {
   
   // Konsolide edilmiş veri varsa onu kullan
   if (reportData.consolidatedData) {
-    console.log('📊 [DEBUG] Konsolide edilmiş veri kullanılıyor:', reportData.consolidatedData);
+    // console.log('📊 [DEBUG] Konsolide edilmiş veri kullanılıyor:', reportData.consolidatedData);
     return prepareConsolidatedAnalysisData(reportData.consolidatedData);
   }
   
@@ -266,7 +266,7 @@ export function prepareAnalysisData(storedData) {
  * @returns {Object} Birleştirilmiş veriler
  */
 export function consolidateData(reportData) {
-  console.log('🔗 [DEBUG] consolidateData başladı:', reportData);
+  // console.log('🔗 [DEBUG] consolidateData başladı:', reportData);
   
   const { sessionData, conversionData, periods = [] } = reportData;
   
@@ -289,7 +289,7 @@ export function consolidateData(reportData) {
   
   // Tüm periyotları birleştir (periods + mevcut)
   const allPeriods = [...periods, currentPeriod];
-  console.log('🔗 [DEBUG] Birleştirilecek periyotlar:', allPeriods);
+  // console.log('🔗 [DEBUG] Birleştirilecek periyotlar:', allPeriods);
   
   // Tarih kontrolü ve sıralama
   const sortedPeriods = validateAndSortPeriods(allPeriods);
@@ -297,7 +297,7 @@ export function consolidateData(reportData) {
   // Veri birleştirme
   const consolidatedResult = mergePeriodsData(sortedPeriods, sessionData.tabName, conversionData.tabName);
   
-  console.log('🔗 [DEBUG] Birleştirme tamamlandı:', consolidatedResult);
+  // console.log('🔗 [DEBUG] Birleştirme tamamlandı:', consolidatedResult);
   return consolidatedResult;
 }
 
@@ -307,7 +307,7 @@ export function consolidateData(reportData) {
  * @returns {Array} Sıralı ve validate edilmiş periyotlar
  */
 function validateAndSortPeriods(periods) {
-  console.log('📅 [DEBUG] Tarih validasyonu başladı:', periods);
+  // console.log('📅 [DEBUG] Tarih validasyonu başladı:', periods);
   
   // Tarih aralıklarını parse et
   const parsedPeriods = periods.map((period, index) => {
@@ -347,7 +347,7 @@ function validateAndSortPeriods(periods) {
     }
   }
   
-  console.log('📅 [DEBUG] Sıralı periyotlar:', parsedPeriods.map(p => p.dateRange));
+  // console.log('📅 [DEBUG] Sıralı periyotlar:', parsedPeriods.map(p => p.dateRange));
   return parsedPeriods;
 }
 
@@ -397,7 +397,7 @@ function formatDate(date) {
  * @returns {Object} Birleştirilmiş veri
  */
 function mergePeriodsData(sortedPeriods, sessionTabName, conversionTabName) {
-  console.log('🔢 [DEBUG] Veri birleştirme başladı');
+  // console.log('🔢 [DEBUG] Veri birleştirme başladı');
   
   let totalSessionsControl = 0;
   let totalConversionsControl = 0;
@@ -410,7 +410,7 @@ function mergePeriodsData(sortedPeriods, sessionTabName, conversionTabName) {
   
   // Her periyodun verilerini topla
   sortedPeriods.forEach((period, index) => {
-    console.log(`🔢 [DEBUG] Periyot ${index + 1} işleniyor:`, period.dateRange);
+    // console.log(`🔢 [DEBUG] Periyot ${index + 1} işleniyor:`, period.dateRange);
     
     const sessionData = period.sessionData;
     const conversionData = period.conversionData;
@@ -464,7 +464,7 @@ function mergePeriodsData(sortedPeriods, sessionTabName, conversionTabName) {
     bussinessImpact: ""
   };
   
-  console.log('🔢 [DEBUG] Birleştirilmiş veri:', consolidatedData);
+  // console.log('🔢 [DEBUG] Birleştirilmiş veri:', consolidatedData);
   return consolidatedData;
 }
 
@@ -474,7 +474,7 @@ function mergePeriodsData(sortedPeriods, sessionTabName, conversionTabName) {
  * @returns {Object} Analiz için hazırlanmış veriler
  */
 function prepareConsolidatedAnalysisData(consolidatedData) {
-  console.log('📊 [DEBUG] Konsolide veri analiz formatına çevriliyor:', consolidatedData);
+  // console.log('📊 [DEBUG] Konsolide veri analiz formatına çevriliyor:', consolidatedData);
   
   // Control segment'ini ekle
   const segments = [{
@@ -510,7 +510,7 @@ function prepareConsolidatedAnalysisData(consolidatedData) {
     bussinessImpact: consolidatedData.bussinessImpact
   };
   
-  console.log('📊 [DEBUG] Analiz verisi hazır:', analysisData);
+  // console.log('📊 [DEBUG] Analiz verisi hazır:', analysisData);
   return analysisData;
 }
 

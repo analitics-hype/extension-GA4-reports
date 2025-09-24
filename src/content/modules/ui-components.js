@@ -385,18 +385,18 @@ export async function displayResults(resultDiv, data) {
 export async function formatData(data) {
   const { reportName, dateRange, analysis, bussinessImpact } = data;
   
-  console.log('📅 [DEBUG] formatData - Tarih formatlanıyor:', {
-    reportName: reportName,
-    dateRange: dateRange,
-    periodCount: data.periodCount
-  });
+  // console.log('📅 [DEBUG] formatData - Tarih formatlanıyor:', {
+  //   reportName: reportName,
+  //   dateRange: dateRange,
+  //   periodCount: data.periodCount
+  // });
   
   // Konsolide edilmiş veri ise dateRange'i kontrol et
   let actualDateRange = dateRange;
   
   // Eğer konsolide edilmiş veri varsa ve farklı bir tarih aralığı varsa onu kullan
   if (data.periodCount && data.periodCount > 1) {
-    console.log('📅 [DEBUG] Konsolide edilmiş tarih aralığı kullanılıyor:', actualDateRange);
+    // console.log('📅 [DEBUG] Konsolide edilmiş tarih aralığı kullanılıyor:', actualDateRange);
   }
   
   const testDuration = calculateTestDuration(actualDateRange);
@@ -414,12 +414,12 @@ export async function formatData(data) {
   const formattedStartDate = formatDateTurkish(startDate);
   const formattedEndDate = formatDateTurkish(endDate);
   
-  console.log('📅 [DEBUG] Formatlanmış tarihler:', {
-    actualDateRange: actualDateRange,
-    formattedStartDate: formattedStartDate,
-    formattedEndDate: formattedEndDate,
-    testDuration: testDuration
-  });
+  // console.log('📅 [DEBUG] Formatlanmış tarihler:', {
+  //   actualDateRange: actualDateRange,
+  //   formattedStartDate: formattedStartDate,
+  //   formattedEndDate: formattedEndDate,
+  //   testDuration: testDuration
+  // });
   
   // Sonuç durumu için resultStatus belirleme
   let resultStatus = '';
@@ -611,7 +611,7 @@ export function injectAnalyzeButton() {
 
       
     if (contentArea) {
-      console.log('Crosstab bulundu, observer başlatılıyor');
+      // console.log('Crosstab bulundu, observer başlatılıyor');
       observer.observe(contentArea, { 
         childList: true, 
         subtree: true,
@@ -621,7 +621,7 @@ export function injectAnalyzeButton() {
       // İlk durumu ayarla
       updateButtonState(mainContainer);
     } else {
-      console.log('Crosstab bekleniyor...');
+      // console.log('Crosstab bekleniyor...');
       setTimeout(setupObserver, 500);
     }
   }
@@ -692,7 +692,7 @@ export function injectAnalyzeButton() {
       
       // Eğer tıklanan element mainContainer içinde değilse, kapat
       if (!mainContainer.contains(event.target)) {
-        console.log('📎 [DEBUG] Dışarıya tıklandı, buton grubu kapatılıyor');
+        // console.log('📎 [DEBUG] Dışarıya tıklandı, buton grubu kapatılıyor');
         closeButtonGroup();
       }
     }
@@ -700,7 +700,7 @@ export function injectAnalyzeButton() {
     // ESC tuşu ile kapatma
     function handleKeyPress(event) {
       if (event.key === 'Escape' && expandableContainer.classList.contains('expanded')) {
-        console.log('📎 [DEBUG] ESC tuşu ile buton grubu kapatılıyor');
+        // console.log('📎 [DEBUG] ESC tuşu ile buton grubu kapatılıyor');
         closeButtonGroup();
       }
     }
@@ -747,28 +747,28 @@ export function injectAnalyzeButton() {
         return;
       }
 
-      console.log('🔍 [DEBUG] Buton tıklandı:', {
-        buttonMode: button.dataset.mode,
-        reportData: results.data,
-        currentTime: new Date().toISOString()
-      });
+      // console.log('🔍 [DEBUG] Buton tıklandı:', {
+      //   buttonMode: button.dataset.mode,
+      //   reportData: results.data,
+      //   currentTime: new Date().toISOString()
+      // });
 
       // Buton tipine göre işlem yap
       switch (button.dataset.mode) {
         case 'session':
-          console.log('📥 [DEBUG] Session butonu - Veri kaydediliyor...');
+          // console.log('📥 [DEBUG] Session butonu - Veri kaydediliyor...');
           saveKPIData(results.data, results.data.tableData, 'session');
           // Button'ı tab ismi ile güncelle
           updateButtonWithTabName(button, 'session');
           break;
         case 'conversion':
-          console.log('📥 [DEBUG] Conversion butonu - Veri kaydediliyor...');
+          // console.log('📥 [DEBUG] Conversion butonu - Veri kaydediliyor...');
           saveKPIData(results.data, results.data.tableData, 'conversion');
           // Button'ı tab ismi ile güncelle
           updateButtonWithTabName(button, 'conversion');
           break;
         case 'topla':
-          console.log('🔗 [DEBUG] Topla butonu tıklandı - Session storage içeriği:');
+          // console.log('🔗 [DEBUG] Topla butonu tıklandı - Session storage içeriği:');
           try {
             let currentStorage;
             try {
@@ -778,7 +778,7 @@ export function injectAnalyzeButton() {
               showNotification('Veri formatı bozuk. Lütfen temizleyip tekrar deneyin.', 'error');
               break;
             }
-            console.log('📦 [DEBUG] Mevcut session storage:', currentStorage);
+            // console.log('📦 [DEBUG] Mevcut session storage:', currentStorage);
             
             const reportName = results.data.reportName;
             const reportData = currentStorage[reportName];
@@ -795,7 +795,7 @@ export function injectAnalyzeButton() {
             currentStorage[reportName].consolidatedData = consolidatedData;
             sessionStorage.setItem('ga4_abtest_data', JSON.stringify(currentStorage));
             
-            console.log('🔗 [DEBUG] Konsolidasyon tamamlandı:', consolidatedData);
+            // console.log('🔗 [DEBUG] Konsolidasyon tamamlandı:', consolidatedData);
             
             // Topla butonunu güncelle - tarih aralığını göster
             updateToplaButton(button, consolidatedData.dateRange, consolidatedData.periodCount);
@@ -811,7 +811,7 @@ export function injectAnalyzeButton() {
           }
           break;
         case 'temizle':
-          console.log('🗑️ [DEBUG] Temizle butonu - Session storage temizleniyor...');
+          // console.log('🗑️ [DEBUG] Temizle butonu - Session storage temizleniyor...');
           try {
             let currentStorage;
             try {
@@ -823,7 +823,7 @@ export function injectAnalyzeButton() {
               showNotification('Bozuk veri temizlendi', 'success');
               break;
             }
-            console.log('📦 [DEBUG] Temizlenmeden önce storage:', currentStorage);
+            // console.log('📦 [DEBUG] Temizlenmeden önce storage:', currentStorage);
             
             const reportName = results.data.reportName;
             
@@ -831,10 +831,10 @@ export function injectAnalyzeButton() {
             if (currentStorage[reportName]) {
               delete currentStorage[reportName];
               sessionStorage.setItem('ga4_abtest_data', JSON.stringify(currentStorage));
-              console.log('✅ [DEBUG] Rapor verisi temizlendi:', reportName);
+              // console.log('✅ [DEBUG] Rapor verisi temizlendi:', reportName);
               showNotification(`"${reportName}" raporu temizlendi`, 'success');
             } else {
-              console.log('ℹ️ [DEBUG] Temizlenecek veri bulunamadı');
+              // console.log('ℹ️ [DEBUG] Temizlenecek veri bulunamadı');
               showNotification('Temizlenecek veri bulunamadı', 'info');
             }
             
@@ -862,7 +862,7 @@ export function injectAnalyzeButton() {
             showNotification('Veri formatı bozuk. Lütfen temizleyip tekrar deneyin.', 'error');
             return;
           }
-          console.log("Analiz için hazırlanan veri: ", storedData);
+          // console.log("Analiz için hazırlanan veri: ", storedData);
           
           const analysisData = prepareAnalysisData(storedData);
           if (!analysisData) {
@@ -878,11 +878,11 @@ export function injectAnalyzeButton() {
             return;
           }
           
-          console.log('🔍 [DEBUG] displayResults çağrısı hazırlanıyor:', {
-            currentDateRange: results.data.dateRange,
-            analysisDataRange: analysisData.dateRange,
-            periodCount: analysisData.periodCount
-          });
+          // console.log('🔍 [DEBUG] displayResults çağrısı hazırlanıyor:', {
+            // currentDateRange: results.data.dateRange,
+            // analysisDataRange: analysisData.dateRange,
+            // periodCount: analysisData.periodCount
+          // });
 
           // Element kontrolü
           const contentElement = document.getElementById('ga4-abtest-content');
@@ -916,7 +916,7 @@ export function injectAnalyzeButton() {
             return;
           }
 
-          console.log("Doğrudan analiz için hazırlanan veri: ", directAnalysisData);
+          // console.log("Doğrudan analiz için hazırlanan veri: ", directAnalysisData);
           const directAnalysis = await analyzeABTest(directAnalysisData);
           if (!directAnalysis) {
             console.error('❌ [DEBUG] directAnalysis null döndü');
@@ -949,7 +949,7 @@ export function injectAnalyzeButton() {
       // Buton tıklama sonrası grup otomatik kapanma
       if (button.dataset.mode !== 'analyze' && button.dataset.mode !== 'analyze-direct') {
         // Session Al, Dönüşüm Al, Topla, Temizle butonları için grup kapat
-        console.log('📎 [DEBUG] Buton işlemi tamamlandı, grup kapatılıyor:', button.dataset.mode);
+        // console.log('📎 [DEBUG] Buton işlemi tamamlandı, grup kapatılıyor:', button.dataset.mode);
         setTimeout(() => {
           if (mainContainer._autoCloseListeners) {
             mainContainer._autoCloseListeners.close();
@@ -975,7 +975,7 @@ export function injectAnalyzeButton() {
         resultsElement.style.display = 'flex';
         
         // Analiz popup açıldığında da grup kapat
-        console.log('📎 [DEBUG] Analiz popup açıldı, grup kapatılıyor');
+        // console.log('📎 [DEBUG] Analiz popup açıldı, grup kapatılıyor');
         setTimeout(() => {
           if (mainContainer._autoCloseListeners) {
             mainContainer._autoCloseListeners.close();
@@ -987,7 +987,7 @@ export function injectAnalyzeButton() {
       try {
         const storageData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
         if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
-          console.log('AB Test Analiz Et butonuna tıklandı. Storage verisi:', storageData);
+          // console.log('AB Test Analiz Et butonuna tıklandı. Storage verisi:', storageData);
         }
       } catch (parseError) {
         console.error('❌ [DEBUG] Storage log parse hatası:', parseError);
@@ -1149,7 +1149,7 @@ function addDataButtons(container, tableData, reportInfo) {
         const reportData = storedData[results.data.reportName];
         
         if (reportData && reportData.consolidatedData) {
-          console.log('🔄 [DEBUG] Buton grubu açılışında Topla butonu güncelleniyor');
+          // console.log('🔄 [DEBUG] Buton grubu açılışında Topla butonu güncelleniyor');
           updateToplaButton(toplaButton, reportData.consolidatedData.dateRange, reportData.consolidatedData.periodCount);
         }
       }
@@ -1211,7 +1211,7 @@ function addToplaTemizleButtons(container) {
       
       // Eğer consolidatedData varsa butonu güncelle
       if (reportData && reportData.consolidatedData) {
-        console.log('🔄 [DEBUG] İlk oluşturma sırasında consolidatedData bulundu, buton güncelleniyor');
+        // console.log('🔄 [DEBUG] İlk oluşturma sırasında consolidatedData bulundu, buton güncelleniyor');
         updateToplaButton(toplaButton, reportData.consolidatedData.dateRange, reportData.consolidatedData.periodCount);
       }
     }
@@ -1571,7 +1571,7 @@ function formatSingleDateForTooltip(dateStr) {
  * @param {number} periodCount - Birleştirilen dönem sayısı
  */
 function updateToplaButton(button, dateRange, periodCount) {
-  console.log('🔄 [DEBUG] Topla butonu güncelleniyor:', { dateRange, periodCount });
+  // console.log('🔄 [DEBUG] Topla butonu güncelleniyor:', { dateRange, periodCount });
   
   // Button içeriğini güncelle
   const buttonContent = button.querySelector('.button-content');
@@ -1605,7 +1605,7 @@ function updateToplaButton(button, dateRange, periodCount) {
       subtitleElement.style.textOverflow = 'ellipsis';
       subtitleElement.style.whiteSpace = 'nowrap';
       
-      console.log('🔄 [DEBUG] Topla butonu güncellendi');
+      // console.log('🔄 [DEBUG] Topla butonu güncellendi');
     }
   }
   

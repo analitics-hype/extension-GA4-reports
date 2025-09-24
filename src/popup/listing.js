@@ -17,7 +17,7 @@ async function fetchReports() {
         const result = await response.json();
         if (result.success) {
             data = result.data;
-            console.log("data",data);
+            // console.log("data",data);
             createBrandList();
         } else {
             console.error('Raporlar alınırken hata:', result.error);
@@ -37,7 +37,7 @@ async function fetchReport(id) {
         // const response = await fetch(`http://localhost:3000/api/reports/${id}`);
         const response = await fetch(`${apiUrl}/reports/${id}`);
         const result = await response.json();
-        console.log("result",result);
+        // console.log("result",result);
         
         // Önbelleğe ekle
         if (result.success) {
@@ -99,7 +99,7 @@ async function updateReportStatus(id, newStatus) {
             },
             body: JSON.stringify({ status: newStatus })
         });
-        console.log(response);
+        // console.log(response);
         const result = await response.json();
         if (result.success) {
             // Başarılı güncelleme sonrası listeyi yenile
@@ -171,7 +171,7 @@ function showPopup(test) {
     
     // Metrikleri hazırla
     const metrics = originalData.analysis.map(analysis => analysis.name || 'Metrik');
-    console.log('metrics', metrics);
+    // console.log('metrics', metrics);
     
     // Varsayılan olarak ilk metriği göster
     let selectedIndex = 0;
