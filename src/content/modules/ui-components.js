@@ -338,13 +338,48 @@ export function showNotification(message, type = 'info', duration = 3000) {
  * @returns {Promise<void>}
  */
 export async function displayResults(resultDiv, data) {
-  const templateData = await formatData(data);
-  // HTML şablonunu ekle (async template function)
-  const templateHtml = await getResultsTemplate(templateData);
-  resultDiv.innerHTML = templateHtml;
+  try {
+    // Element kontrolü
+    if (!resultDiv || !resultDiv.parentNode) {
+      console.error('❌ [DEBUG] resultDiv null veya DOM\'dan kaldırılmış');
+      return;
+    }
 
-  // Event listener'ları ekle
-  setupResultEventListeners(resultDiv, data);
+    // Data kontrolü
+    if (!data) {
+      console.error('❌ [DEBUG] displayResults - data null');
+      return;
+    }
+
+    const templateData = await formatData(data);
+    if (!templateData) {
+      console.error('❌ [DEBUG] formatData null döndü');
+      return;
+    }
+
+    // HTML şablonunu ekle (async template function)
+    const templateHtml = await getResultsTemplate(templateData);
+    if (!templateHtml) {
+      console.error('❌ [DEBUG] getResultsTemplate null döndü');
+      return;
+    }
+
+    // Element hala var mı kontrol et (async işlemler sırasında kaybolmuş olabilir)
+    if (!resultDiv || !resultDiv.parentNode) {
+      console.error('❌ [DEBUG] resultDiv async işlem sırasında kayboldu');
+      return;
+    }
+
+    resultDiv.innerHTML = templateHtml;
+
+    // Event listener'ları ekle
+    setupResultEventListeners(resultDiv, data);
+  } catch (error) {
+    console.error('❌ [DEBUG] displayResults hatası:', error);
+    if (resultDiv && resultDiv.parentNode) {
+      resultDiv.innerHTML = '<div style="color: red; padding: 20px;">Sonuçlar yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.</div>';
+    }
+  }
 }
 
 export async function formatData(data) {
@@ -735,7 +770,14 @@ export function injectAnalyzeButton() {
         case 'topla':
           console.log('🔗 [DEBUG] Topla butonu tıklandı - Session storage içeriği:');
           try {
-            const currentStorage = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+            let currentStorage;
+            try {
+              currentStorage = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+            } catch (parseError) {
+              console.error('❌ [DEBUG] Topla - SessionStorage parse hatası:', parseError);
+              showNotification('Veri formatı bozuk. Lütfen temizleyip tekrar deneyin.', 'error');
+              break;
+            }
             console.log('📦 [DEBUG] Mevcut session storage:', currentStorage);
             
             const reportName = results.data.reportName;
@@ -771,7 +813,16 @@ export function injectAnalyzeButton() {
         case 'temizle':
           console.log('🗑️ [DEBUG] Temizle butonu - Session storage temizleniyor...');
           try {
-            const currentStorage = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+            let currentStorage;
+            try {
+              currentStorage = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+            } catch (parseError) {
+              console.error('❌ [DEBUG] Temizle - SessionStorage parse hatası:', parseError);
+              // Parse hatası durumunda tüm storage'ı temizle
+              sessionStorage.removeItem('ga4_abtest_data');
+              showNotification('Bozuk veri temizlendi', 'success');
+              break;
+            }
             console.log('📦 [DEBUG] Temizlenmeden önce storage:', currentStorage);
             
             const reportName = results.data.reportName;
@@ -803,10 +854,29 @@ export function injectAnalyzeButton() {
             return;
           }
 
-          const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+          let storedData;
+          try {
+            storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+          } catch (parseError) {
+            console.error('❌ [DEBUG] SessionStorage parse hatası:', parseError);
+            showNotification('Veri formatı bozuk. Lütfen temizleyip tekrar deneyin.', 'error');
+            return;
+          }
           console.log("Analiz için hazırlanan veri: ", storedData);
+          
           const analysisData = prepareAnalysisData(storedData);
+          if (!analysisData) {
+            console.error('❌ [DEBUG] prepareAnalysisData null döndü');
+            showNotification('Analiz verisi hazırlanamadı', 'error');
+            return;
+          }
+
           const analysis = await analyzeABTest(analysisData);
+          if (!analysis) {
+            console.error('❌ [DEBUG] analyzeABTest null döndü');
+            showNotification('Analiz yapılamadı', 'error');
+            return;
+          }
           
           console.log('🔍 [DEBUG] displayResults çağrısı hazırlanıyor:', {
             currentDateRange: results.data.dateRange,
@@ -814,8 +884,16 @@ export function injectAnalyzeButton() {
             periodCount: analysisData.periodCount
           });
 
-          displayResults(
-            document.getElementById('ga4-abtest-content'),
+          // Element kontrolü
+          const contentElement = document.getElementById('ga4-abtest-content');
+          if (!contentElement) {
+            console.error('❌ [DEBUG] ga4-abtest-content elementi bulunamadı');
+            showNotification('Popup elementi bulunamadı. Lütfen sayfayı yenileyin.', 'error');
+            return;
+          }
+
+          await displayResults(
+            contentElement,
             {
               reportName: results.data.reportName,
               // Konsolide edilmiş veri varsa onu kullan, yoksa mevcut tarih aralığını kullan
@@ -832,10 +910,30 @@ export function injectAnalyzeButton() {
           break;
         case 'analyze-direct':
           const directAnalysisData = prepareDirectAnalysisData(results.data.tableData);
+          if (!directAnalysisData) {
+            console.error('❌ [DEBUG] prepareDirectAnalysisData null döndü');
+            showNotification('Direkt analiz verisi hazırlanamadı', 'error');
+            return;
+          }
+
           console.log("Doğrudan analiz için hazırlanan veri: ", directAnalysisData);
-          const directAnalysis = analyzeABTest(directAnalysisData);
-          displayResults(
-            document.getElementById('ga4-abtest-content'),
+          const directAnalysis = await analyzeABTest(directAnalysisData);
+          if (!directAnalysis) {
+            console.error('❌ [DEBUG] directAnalysis null döndü');
+            showNotification('Direkt analiz yapılamadı', 'error');
+            return;
+          }
+
+          // Element kontrolü
+          const directContentElement = document.getElementById('ga4-abtest-content');
+          if (!directContentElement) {
+            console.error('❌ [DEBUG] ga4-abtest-content elementi bulunamadı (direct)');
+            showNotification('Popup elementi bulunamadı. Lütfen sayfayı yenileyin.', 'error');
+            return;
+          }
+
+          await displayResults(
+            directContentElement,
             {
               reportName: results.data.reportName,
               dateRange: results.data.dateRange,
@@ -861,8 +959,20 @@ export function injectAnalyzeButton() {
 
       // Popup'ı göster (analiz durumlarında)
       if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
-        document.getElementById('ga4-abtest-overlay').style.display = 'block';
-        document.getElementById('ga4-abtest-results').style.display = 'flex';
+        const overlayElement = document.getElementById('ga4-abtest-overlay');
+        const resultsElement = document.getElementById('ga4-abtest-results');
+        
+        if (!overlayElement || !resultsElement) {
+          console.error('❌ [DEBUG] Popup elementleri bulunamadı:', {
+            overlay: !!overlayElement,
+            results: !!resultsElement
+          });
+          showNotification('Popup gösterilemiyor. Lütfen sayfayı yenileyin.', 'error');
+          return;
+        }
+
+        overlayElement.style.display = 'block';
+        resultsElement.style.display = 'flex';
         
         // Analiz popup açıldığında da grup kapat
         console.log('📎 [DEBUG] Analiz popup açıldı, grup kapatılıyor');
@@ -874,9 +984,13 @@ export function injectAnalyzeButton() {
       }
 
       // İşlem sonrası storage durumunu konsola yazdır
-      const storageData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-      if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
-        console.log('AB Test Analiz Et butonuna tıklandı. Storage verisi:', storageData);
+      try {
+        const storageData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+        if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
+          console.log('AB Test Analiz Et butonuna tıklandı. Storage verisi:', storageData);
+        }
+      } catch (parseError) {
+        console.error('❌ [DEBUG] Storage log parse hatası:', parseError);
       }
 
     } catch (error) {
@@ -893,8 +1007,12 @@ export function injectAnalyzeButton() {
   });
 
   overlay.addEventListener('click', () => {
-    overlay.style.display = 'none';
-    resultsPopup.style.display = 'none';
+    if (overlay && overlay.style) {
+      overlay.style.display = 'none';
+    }
+    if (resultsPopup && resultsPopup.style) {
+      resultsPopup.style.display = 'none';
+    }
   });
 }
 

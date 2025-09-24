@@ -1,6 +1,6 @@
 import {  watchUrlChanges } from "./modules/url-watcher.js";
 import { notifyPageLoaded, setupMessageListener } from "./modules/message-handlers.js";
-import { initABTestTool } from "./modules/ab-test-tool.js";
+import { initABTestTool, setupABTestMessageListener } from "./modules/ab-test-tool.js";
 
 // Check if current site is Google Analytics
 function isGoogleAnalyticsSite() {
@@ -16,6 +16,9 @@ function isGoogleAnalyticsSite() {
 function initializeExtension() {
   let currentUrl = window.location.href;
   let checkInterval = null;
+
+  // Setup A/B test message listener once (for popup communication)
+  setupABTestMessageListener();
 
   // History API'yi izle
   const pushState = history.pushState;

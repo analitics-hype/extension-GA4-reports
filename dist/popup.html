@@ -102,6 +102,106 @@
             transform: translateY(0);
         }
 
+        /* A/B Test Management Styles */
+        .ab-test-section {
+            background-color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .ab-test-header {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ab-form-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .ab-form-label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .ab-form-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background-color: var(--bg-color);
+            transition: all 0.2s ease;
+        }
+
+        .ab-form-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        }
+
+        .ab-current-variation {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 0.25rem;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .ab-tool-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .ab-btn {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .ab-btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .ab-btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .ab-btn-secondary {
+            background-color: #6b7280;
+            color: white;
+        }
+
+        .ab-btn-secondary:hover {
+            background-color: #4b5563;
+            transform: translateY(-1px);
+        }
+
+        .ab-btn:active {
+            transform: translateY(0);
+        }
+
+        .no-ab-test-section {
+            /* No additional styles needed, uses existing .message styles */
+        }
+
         @media (prefers-color-scheme: dark) {
             :root {
                 --primary-color: #818cf8;
@@ -116,18 +216,31 @@
                 background-color: var(--bg-color);
             }
 
-            .message, .confidence-container {
+            .message, .confidence-container, .ab-test-section {
                 background-color: #111827;
             }
 
-            .confidence-input {
+            .confidence-input, .ab-form-select {
                 background-color: #374151;
                 color: #f9fafb;
                 border-color: #4b5563;
             }
 
-            .confidence-input:focus {
+            .confidence-input:focus, .ab-form-select:focus {
                 border-color: var(--primary-color);
                 box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.1);
             }
-        }</style><script defer="defer" src="popup.js"></script><link href="popup.css" rel="stylesheet"></head><body><div class="container"><div class="message">AB Test analizi yapmak için GA4'te segment karşılaştırma raporuna gidin ve sayfadaki "AB Test Analiz Et" butonunu kullanın.</div><div class="confidence-container"><label class="confidence-label">Güvenilirlik Oranı (%) <input type="number" id="confidenceLevel" class="confidence-input" value="95" min="1" max="99" step="1"></label></div><div class="button-container"><a href="chrome-extension://listing.html" id="optionsLink" target="_blank" class="reports-button">Tüm Raporları Görüntüle</a></div></div><script src="popup.js"></script></body></html>
+
+            .ab-current-variation {
+                background: rgba(129, 140, 248, 0.1);
+                border-color: rgba(129, 140, 248, 0.2);
+            }
+
+            .ab-btn-secondary {
+                background-color: #4b5563;
+            }
+
+            .ab-btn-secondary:hover {
+                background-color: #374151;
+            }
+        }</style><script defer="defer" src="popup.js"></script><link href="popup.css" rel="stylesheet"></head><body><div class="container"><div class="message">AB Test analizi yapmak için GA4'te segment karşılaştırma raporuna gidin ve sayfadaki "AB Test Analiz Et" butonunu kullanın.</div><div class="confidence-container"><label class="confidence-label">Güvenilirlik Oranı (%) <input type="number" id="confidenceLevel" class="confidence-input" value="95" min="1" max="99" step="1"></label></div><div class="button-container"><a href="chrome-extension://listing.html" id="optionsLink" target="_blank" class="reports-button">Tüm Raporları Görüntüle</a></div><div class="ab-test-section" id="abTestSection" style="display: none;"><div class="ab-test-header"><h3 style="margin: 0; color: var(--text-primary); font-size: 1rem; font-weight: 600;">A/B Test Varyasyon Yöneticisi</h3></div><div class="ab-form-group"><label class="ab-form-label">Test Seçin:</label> <select class="ab-form-select" id="testSelect"></select></div><div class="ab-form-group"><label class="ab-form-label">Varyasyon Seçin:</label> <select class="ab-form-select" id="variationSelect"><option value="control">Control</option><option value="var1">Variant 1</option><option value="var2">Variant 2</option><option value="var3">Variant 3</option></select><div class="ab-current-variation" id="currentVariation">A/B test bulunamadı</div></div><div class="ab-tool-actions"><button class="ab-btn ab-btn-primary" id="applyABChanges">Uygula</button> <button class="ab-btn ab-btn-secondary" id="refreshABTool">Yenile</button></div></div><div class="no-ab-test-section" id="noAbTestSection"><div class="message" style="background-color: #f0f8ff; border-color: #2196f3; color: var(--text-secondary);">Bu sitede aktif A/B test bulunamadı. A/B test çalışan bir sayfaya gidin.</div></div></div><script src="popup.js"></script></body></html>
