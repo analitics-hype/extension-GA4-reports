@@ -9,10 +9,16 @@ import { injectAnalyzeButton } from "./ui-components.js";
  * Butonları ve ilgili elementleri temizle
  */
 export function cleanupExtension(checkInterval) {
-  // Buton container'ı kaldır
-  const buttonContainer = document.querySelector('.ga4-abtest-buttons');
-  if (buttonContainer) {
-    buttonContainer.remove();
+  // Ana buton container'ı kaldır (yeni yapı)
+  const mainContainer = document.querySelector('.ga4-abtest-main-container');
+  if (mainContainer) {
+    mainContainer.remove();
+  }
+
+  // Eski yapı için geriye dönük uyumluluk
+  const oldButtonContainer = document.querySelector('.ga4-abtest-buttons');
+  if (oldButtonContainer) {
+    oldButtonContainer.remove();
   }
 
   // Popup ve overlay'i kaldır
@@ -50,13 +56,13 @@ export function watchUrlChanges(currentUrl, checkInterval) {
   // Önce mevcut butonları ve elementleri temizle
   cleanupExtension(checkInterval);
 
-  // Analysis panels elementini kontrol et
+  // Analysis panels elementini kontrol et (sadece rapor sayfalarında var)
   function checkAnalysisPanels() {
     const analysisPanel = document.querySelector('.analysis-panels');
     if (analysisPanel) {
-      console.log('Analysis panel bulundu, eklenti başlatılıyor...');
+      console.log('Analysis panel bulundu (rapor sayfası), eklenti başlatılıyor...');
       clearInterval(checkInterval);
-      waitForSelector(".gmp-header-spacer", () => {
+      waitForSelector("#suite-top-nav", () => {
         injectAnalyzeButton();
       });
     }

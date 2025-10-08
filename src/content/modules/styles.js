@@ -13,7 +13,15 @@ export function getResultsStyles() {
           align-items: center;
           margin-left: 16px;
           gap: 0;
+              display: inline-flex;
+    float: right;
+    margin-right: 36px;
       }
+       .ga4-abtest-buttons-container {
+           display: flex;
+    gap: 10px;
+    margin: 6px;
+       }   
       
       .ga4-abtest-close-button {
           display: inline-flex;

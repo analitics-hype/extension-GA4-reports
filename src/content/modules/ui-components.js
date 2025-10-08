@@ -533,8 +533,8 @@ export function exportToCSV(data) {
 }
 
 /**
- * A/B Test analiz butonunu ve popup'ını sayfaya ekle
- * Ana buton tıklandığında animasyonla diğer butonlar gösterilir
+ * A/B Test analiz butonlarını sayfaya ekle
+ * Tüm butonlar sürekli görünür ve yan yana
  */
 export function injectAnalyzeButton() {
 
@@ -544,33 +544,29 @@ export function injectAnalyzeButton() {
     return;
   }
 
-  // Ana konteyner oluştur
+  // Ana konteyner oluştur - tüm butonları içerecek
   const mainContainer = document.createElement('div');
   mainContainer.className = 'ga4-abtest-main-container';
   
-  // Ana analiz butonu (yeşil buton)
-  const analyzeButton = document.createElement('div');
-  analyzeButton.className = 'ga4-abtest-analyze-button';
-  analyzeButton.innerHTML = `
-    <button class="ga4-abtest-button analyze-main">
-      <span>A/B Test Analizi</span>
-      <img src="https://useruploads.vwo.io/useruploads/529944/images/6d6d2d6df0f82d5d42fe6485708e4ec8_add81.svg?timestamp=1756366118182" >
-    </button>
-  `;
+  // Butonlar konteyneri - artık sürekli açık
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.className = 'ga4-abtest-buttons-container';
   
-  // Genişleyebilir butonlar konteyneri (başlangıçta gizli)
-  const expandableContainer = document.createElement('div');
-  expandableContainer.className = 'ga4-abtest-expandable-buttons collapsed';
+  // Konteyneri ana konteyner'a ekle
+  mainContainer.appendChild(buttonsContainer);
   
-  // Konteynerleri ana konteyner'a ekle
-  mainContainer.appendChild(analyzeButton);
-  mainContainer.appendChild(expandableContainer);
+  // Ana konteyner'ı header'a ekle - yeni konum: suite-top-nav sonrası
+  const suiteTopNavElement = document.querySelector('#suite-top-nav');
+  const gaHeaderElement = suiteTopNavElement?.closest("ga-header");
   
-  // Ana konteyner'ı header'a ekle
-  const headerSpacer = document.querySelector('.gmp-header-spacer');
-  
-  if (headerSpacer) {
-    headerSpacer.parentNode.insertBefore(mainContainer, headerSpacer.nextSibling);
+  if (gaHeaderElement) {
+    gaHeaderElement.parentNode.insertBefore(mainContainer, gaHeaderElement.nextSibling);
+  } else if (suiteTopNavElement) {
+    // Fallback: ga-header bulunamazsa suite-top-nav'ın sonrasına ekle
+    suiteTopNavElement.parentNode.insertBefore(mainContainer, suiteTopNavElement.nextSibling);
+  } else {
+    console.warn('⚠️ suite-top-nav elementi bulunamadı, butonlar eklenemedi');
+    return;
   }
 
   // Tablo ve sekme değişikliklerini izle
@@ -608,7 +604,6 @@ export function injectAnalyzeButton() {
   // Crosstab elementini bekle ve observer'ı başlat
   function setupObserver() {
     const contentArea = document.querySelector('.crosstab');
-
       
     if (contentArea) {
       // console.log('Crosstab bulundu, observer başlatılıyor');
@@ -631,6 +626,12 @@ export function injectAnalyzeButton() {
     if (loaded) {
       mainContainer.style.display = 'inline-flex';
       setupObserver(); // Observer'ı başlat
+      
+      // İlk butonları ekle
+      const results = getReportInfo();
+      if (results.success) {
+        addDataButtons(buttonsContainer, results.data.tableData, results.data);
+      }
     }
   });
 
@@ -647,96 +648,8 @@ export function injectAnalyzeButton() {
   document.body.appendChild(overlay);
   document.body.appendChild(resultsPopup);
 
-  // Ana buton tıklama fonksiyonu - animasyonla diğer butonları göster/gizle
-  analyzeButton.addEventListener('click', (event) => {
-    // Eğer tıklanan element analiz butonu değilse, normal analiz işlemini yap
-    if (!event.target.closest('.analyze-main')) {
-      return;
-    }
-    
-    const isCollapsed = expandableContainer.classList.contains('collapsed');
-    const arrow = analyzeButton.querySelector('img');
-    
-    if (isCollapsed) {
-      // Genişletme animasyonu
-      expandableContainer.classList.remove('collapsed');
-      expandableContainer.classList.add('expanded');
-      arrow.style.transform = 'rotate(90deg)';
-      
-      // Ana buton gizle ve çarpı ikonu göster
-      analyzeButton.style.display = 'none';
-      showCloseButton(mainContainer);
-
-      
-      // Mevcut KPI verilerini kontrol et ve gerekli butonları ekle
-      const results = getReportInfo();
-      if (results.success) {
-        addDataButtons(expandableContainer, results.data.tableData, results.data);
-      }
-    } else {
-      // Daraltma animasyonu
-      expandableContainer.classList.remove('expanded');
-      expandableContainer.classList.add('collapsed');
-      arrow.style.transform = 'rotate(0deg)';
-    }
-  });
-
-  // Dışarı tıklama ve ESC tuşu ile kapatma özelliği
-  function setupButtonGroupAutoClose() {
-    // Dışarıya tıklama event listener'ı
-    function handleOutsideClick(event) {
-      // Eğer expandableContainer açık değilse, işlem yapma
-      if (expandableContainer.classList.contains('collapsed')) {
-        return;
-      }
-      
-      // Eğer tıklanan element mainContainer içinde değilse, kapat
-      if (!mainContainer.contains(event.target)) {
-        // console.log('📎 [DEBUG] Dışarıya tıklandı, buton grubu kapatılıyor');
-        closeButtonGroup();
-      }
-    }
-    
-    // ESC tuşu ile kapatma
-    function handleKeyPress(event) {
-      if (event.key === 'Escape' && expandableContainer.classList.contains('expanded')) {
-        // console.log('📎 [DEBUG] ESC tuşu ile buton grubu kapatılıyor');
-        closeButtonGroup();
-      }
-    }
-    
-    // Buton grubunu kapatma fonksiyonu
-    function closeButtonGroup() {
-      expandableContainer.classList.remove('expanded');
-      expandableContainer.classList.add('collapsed');
-      
-      // Ana butonu yeniden göster ve close butonunu gizle
-      hideCloseButton(mainContainer);
-      
-      // Arrow'u sıfırla
-      const arrow = analyzeButton.querySelector('img');
-      if (arrow) {
-        arrow.style.transform = 'rotate(0deg)';
-      }
-    }
-    
-    // Event listener'ları ekle
-    document.addEventListener('click', handleOutsideClick);
-    document.addEventListener('keydown', handleKeyPress);
-    
-    // Cleanup için fonksiyonları kaydet
-    mainContainer._autoCloseListeners = {
-      outsideClick: handleOutsideClick,
-      keyPress: handleKeyPress,
-      close: closeButtonGroup
-    };
-  }
-  
-  // Auto-close özelliğini başlat
-  setupButtonGroupAutoClose();
-
-  // Genişleyebilir konteyner buton tıklamalarını dinle
-  expandableContainer.addEventListener('click', async (event) => {
+  // Butonlar konteyneri buton tıklamalarını dinle
+  buttonsContainer.addEventListener('click', async (event) => {
     const button = event.target.closest('.ga4-abtest-button');
     if (!button) return;
 
@@ -758,14 +671,18 @@ export function injectAnalyzeButton() {
         case 'session':
           // console.log('📥 [DEBUG] Session butonu - Veri kaydediliyor...');
           saveKPIData(results.data, results.data.tableData, 'session');
-          // Button'ı tab ismi ile güncelle
-          updateButtonWithTabName(button, 'session');
+          // Butonları yeniden oluştur (Analiz Et butonunu aktif etmek ve subtitle'ı güncellemek için)
+          setTimeout(() => {
+            addDataButtons(buttonsContainer, results.data.tableData, results.data);
+          }, 100);
           break;
         case 'conversion':
           // console.log('📥 [DEBUG] Conversion butonu - Veri kaydediliyor...');
           saveKPIData(results.data, results.data.tableData, 'conversion');
-          // Button'ı tab ismi ile güncelle
-          updateButtonWithTabName(button, 'conversion');
+          // Butonları yeniden oluştur (Analiz Et butonunu aktif etmek ve subtitle'ı güncellemek için)
+          setTimeout(() => {
+            addDataButtons(buttonsContainer, results.data.tableData, results.data);
+          }, 100);
           break;
         case 'topla':
           // console.log('🔗 [DEBUG] Topla butonu tıklandı - Session storage içeriği:');
@@ -797,11 +714,10 @@ export function injectAnalyzeButton() {
             
             // console.log('🔗 [DEBUG] Konsolidasyon tamamlandı:', consolidatedData);
             
-            // Topla butonunu güncelle - tarih aralığını göster
-            updateToplaButton(button, consolidatedData.dateRange, consolidatedData.periodCount);
-            
-            // Analiz Et butonunu aktif et
-            setTimeout(() => updateButtonState(mainContainer), 100);
+            // Butonları yeniden oluştur (Topla butonunu ve Analiz Et'i güncellemek için)
+            setTimeout(() => {
+              addDataButtons(buttonsContainer, results.data.tableData, results.data);
+            }, 100);
             
             showNotification(`${consolidatedData.periodCount} dönem birleştirildi: ${consolidatedData.dateRange}`, 'success');
             
@@ -838,8 +754,10 @@ export function injectAnalyzeButton() {
               showNotification('Temizlenecek veri bulunamadı', 'info');
             }
             
-            // Temizleme sonrası buton durumunu güncelle
-            setTimeout(() => updateButtonState(mainContainer), 100);
+            // Temizleme sonrası butonları yeniden oluştur
+            setTimeout(() => {
+              addDataButtons(buttonsContainer, results.data.tableData, results.data);
+            }, 100);
             
           } catch (error) {
             console.error('🗑️ [DEBUG] Temizleme hatası:', error);
@@ -946,17 +864,6 @@ export function injectAnalyzeButton() {
           break;
       }
 
-      // Buton tıklama sonrası grup otomatik kapanma
-      if (button.dataset.mode !== 'analyze' && button.dataset.mode !== 'analyze-direct') {
-        // Session Al, Dönüşüm Al, Topla, Temizle butonları için grup kapat
-        // console.log('📎 [DEBUG] Buton işlemi tamamlandı, grup kapatılıyor:', button.dataset.mode);
-        setTimeout(() => {
-          if (mainContainer._autoCloseListeners) {
-            mainContainer._autoCloseListeners.close();
-          }
-        }, 500); // 500ms bekle ki kullanıcı işlemi görsün
-      }
-
       // Popup'ı göster (analiz durumlarında)
       if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
         const overlayElement = document.getElementById('ga4-abtest-overlay');
@@ -973,14 +880,6 @@ export function injectAnalyzeButton() {
 
         overlayElement.style.display = 'block';
         resultsElement.style.display = 'flex';
-        
-        // Analiz popup açıldığında da grup kapat
-        // console.log('📎 [DEBUG] Analiz popup açıldı, grup kapatılıyor');
-        setTimeout(() => {
-          if (mainContainer._autoCloseListeners) {
-            mainContainer._autoCloseListeners.close();
-          }
-        }, 300);
       }
 
       // İşlem sonrası storage durumunu konsola yazdır
@@ -996,13 +895,6 @@ export function injectAnalyzeButton() {
     } catch (error) {
       console.error('İşlem hatası:', error);
       showNotification('İşlem sırasında bir hata oluştu: ' + error.message, 'error');
-      
-      // Hata durumunda da kapat
-      setTimeout(() => {
-        if (mainContainer._autoCloseListeners) {
-          mainContainer._autoCloseListeners.close();
-        }
-      }, 1500);
     }
   });
 
@@ -1017,8 +909,8 @@ export function injectAnalyzeButton() {
 }
 
 /**
- * Veri butonlarını (Session Al, Dönüşüm Al, Analiz Et) genişleyebilir konteynere ekle
- * @param {HTMLElement} container - Genişleyebilir konteyner
+ * Veri butonlarını (Session Al, Dönüşüm Al, Analiz Et) konteynere ekle
+ * @param {HTMLElement} container - Butonlar konteyneri
  * @param {Object} tableData - Tablo verileri  
  * @param {Object} reportInfo - Rapor bilgileri
  */
@@ -1037,6 +929,15 @@ function addDataButtons(container, tableData, reportInfo) {
   // Storage'dan mevcut verileri al
   const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
   const currentKPIs = tableData.kpis;
+  
+  // Debug: Storage durumunu kontrol et
+  console.log('🔄 [DEBUG] addDataButtons çağrıldı:', {
+    reportName: reportInfo.reportName,
+    hasStoredData: !!storedData[reportInfo.reportName],
+    hasSession: !!(storedData[reportInfo.reportName]?.sessionData),
+    hasConversion: !!(storedData[reportInfo.reportName]?.conversionData),
+    kpiCount: currentKPIs.length
+  });
 
   if (currentKPIs.length === 2) {
       // İki KPI varsa doğrudan analiz butonu
@@ -1073,6 +974,11 @@ function addDataButtons(container, tableData, reportInfo) {
           const tabName = storedData[reportInfo.reportName].sessionData.tabName;
           const cleanTabName = tabName.includes('-') ? tabName.split('-')[1] : tabName;
           sessionSubtitle.textContent = cleanTabName;
+          console.log('✅ [DEBUG] Session subtitle ayarlandı:', cleanTabName);
+      } else {
+          // Boş subtitle - görünmez olsun
+          sessionSubtitle.textContent = '';
+          sessionSubtitle.style.display = 'none';
       }
       
       // Assemble text container
@@ -1117,6 +1023,11 @@ function addDataButtons(container, tableData, reportInfo) {
           const tabName = storedData[reportInfo.reportName].conversionData.tabName;
           const cleanTabName = tabName.includes('-') ? tabName.split('-')[1] : tabName;
           conversionSubtitle.textContent = cleanTabName;
+          console.log('✅ [DEBUG] Conversion subtitle ayarlandı:', cleanTabName);
+      } else {
+          // Boş subtitle - görünmez olsun
+          conversionSubtitle.textContent = '';
+          conversionSubtitle.style.display = 'none';
       }
       
       // Assemble text container
@@ -1270,10 +1181,22 @@ function addToplaTemizleButtons(container) {
       
       // Analiz Et butonu
       const analyzeDataButton = createButton('Analiz Et', 'analyze');
-      analyzeDataButton.disabled = !(storedData[reportInfo.reportName] && storedData[reportInfo.reportName].sessionData && storedData[reportInfo.reportName].conversionData);
+      const hasSessionData = !!(storedData[reportInfo.reportName]?.sessionData);
+      const hasConversionData = !!(storedData[reportInfo.reportName]?.conversionData);
+      const shouldEnable = hasSessionData && hasConversionData;
+      
+      analyzeDataButton.disabled = !shouldEnable;
       if (analyzeDataButton.disabled) {
           analyzeDataButton.classList.add('disabled');
       }
+      
+      console.log('🔍 [DEBUG] Analiz Et butonu durumu:', {
+        reportName: reportInfo.reportName,
+        hasSessionData,
+        hasConversionData,
+        shouldEnable,
+        disabled: analyzeDataButton.disabled
+      });
       
       container.appendChild(analyzeDataButton);
     }
@@ -1650,76 +1573,6 @@ function updateButtonWithTabName(button, type) {
     }
   }
 }
-
-
-/**
- * Close button'u göster (Ana analiz butonu gizlendiğinde)
- * @param {HTMLElement} mainContainer - Ana konteyner
- */
-function showCloseButton(mainContainer) {
-  // Eğer zaten varsa, tekrar ekleme
-  if (mainContainer.querySelector('.ga4-abtest-close-button')) {
-    return;
-  }
-  
-  // Close button oluştur
-  const closeButton = document.createElement('div');
-  closeButton.className = 'ga4-abtest-close-button';
-  closeButton.innerHTML = `
-    <button class="ga4-abtest-button close-btn">
-<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38" fill="none">
-  <g clip-path="url(#clip0_38_318)">
-    <path d="M28.1924 9.80763C26.3743 7.98954 24.0579 6.75141 21.5362 6.24981C19.0144 5.7482 16.4006 6.00564 14.0251 6.98958C11.6497 7.97352 9.61936 9.63976 8.1909 11.7776C6.76244 13.9154 6 16.4289 6 19C6 21.5712 6.76244 24.0846 8.1909 26.2224C9.61936 28.3603 11.6497 30.0265 14.0251 31.0105C16.4006 31.9944 19.0144 32.2518 21.5362 31.7502C24.0579 31.2486 26.3743 30.0105 28.1924 28.1924C30.6269 25.7526 31.9942 22.4467 31.9942 19C31.9942 15.5533 30.6269 12.2474 28.1924 9.80763ZM11.3397 26.6603C9.82461 25.1453 8.79283 23.215 8.37483 21.1135C7.95682 19.012 8.17136 16.8338 8.99131 14.8543C9.81126 12.8747 11.1998 11.1828 12.9813 9.99243C14.7629 8.80205 16.8574 8.16668 19 8.16668C21.1426 8.16668 23.2371 8.80205 25.0187 9.99243C26.8002 11.1828 28.1888 12.8747 29.0087 14.8543C29.8286 16.8338 30.0432 19.012 29.6252 21.1135C29.2072 23.215 28.1754 25.1453 26.6603 26.6603C24.6271 28.6891 21.8722 29.8284 19 29.8284C16.1278 29.8284 13.3729 28.6891 11.3397 26.6603ZM22.8302 22.8302C22.627 23.0333 22.3515 23.1475 22.0641 23.1475C21.7768 23.1475 21.5013 23.0333 21.2981 22.8302L19 20.5321L16.7019 22.8302C16.4987 23.0333 16.2232 23.1475 15.9359 23.1475C15.6486 23.1475 15.373 23.0333 15.1698 22.8302C14.9667 22.627 14.8525 22.3515 14.8525 22.0641C14.8525 21.7768 14.9667 21.5013 15.1698 21.2981L17.4679 19L15.1698 16.7019C14.9667 16.4988 14.8525 16.2232 14.8525 15.9359C14.8525 15.6486 14.9667 15.373 15.1698 15.1699C15.373 14.9667 15.6486 14.8526 15.9359 14.8526C16.2232 14.8526 16.4987 14.9667 16.7019 15.1699L19 17.468L21.2981 15.1699C21.5013 14.9667 21.7768 14.8526 22.0641 14.8526C22.3515 14.8526 22.627 14.9667 22.8302 15.1699C23.0333 15.373 23.1475 15.6486 23.1475 15.9359C23.1475 16.2232 23.0333 16.4988 22.8302 16.7019L20.5321 19L22.8302 21.2981C23.0333 21.5013 23.1475 21.7768 23.1475 22.0641C23.1475 22.3515 23.0333 22.627 22.8302 22.8302Z" fill="#E45E5E"/>
-  </g>
-  <defs>
-    <clipPath id="clip0_38_318">
-      <rect width="26" height="26" fill="white" transform="translate(19 0.615234) rotate(135)"/>
-    </clipPath>
-  </defs>
-</svg>
-    </button>
-  `;
-  
-  // Ana konteyner'a ekle
-  mainContainer.appendChild(closeButton);
-  
-  // Click event ekle
-  closeButton.addEventListener('click', () => {
-    hideCloseButton(mainContainer);
-  });
-}
-
-/**
- * Close button'u gizle ve ana analiz butonunu göster
- * @param {HTMLElement} mainContainer - Ana konteyner
- */
-function hideCloseButton(mainContainer) {
-  // Close button'u kaldır
-  const closeButton = mainContainer.querySelector('.ga4-abtest-close-button');
-  if (closeButton) {
-    closeButton.remove();
-  }
-  
-  // Ana analiz butonunu göster
-  const analyzeButton = mainContainer.querySelector('.ga4-abtest-analyze-button');
-  if (analyzeButton) {
-    analyzeButton.style.display = 'inline-flex';
-  }
-  
-  // Expandable container'ı kapat
-  const expandableContainer = mainContainer.querySelector('.ga4-abtest-expandable-buttons');
-  if (expandableContainer) {
-    expandableContainer.classList.remove('expanded');
-    expandableContainer.classList.add('collapsed');
-    
-    // Arrow'u sıfırla
-    const arrow = analyzeButton.querySelector('img');
-    if (arrow) {
-      arrow.style.transform = 'rotate(0deg)';
-    }
-  }
-}
-
 // Ana buton durumunu güncelle - yeni yapıda sadece CSS stillerini kontrol eder
 function updateButtonState(buttonContainer) {
   const results = getReportInfo();
