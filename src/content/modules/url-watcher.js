@@ -62,7 +62,7 @@ export function watchUrlChanges(currentUrl, checkInterval) {
     if (analysisPanel) {
       console.log('Analysis panel bulundu (rapor sayfası), eklenti başlatılıyor...');
       clearInterval(checkInterval);
-      waitForSelector("#suite-top-nav", () => {
+      waitForSelector(".analysis-area", () => {
         injectAnalyzeButton();
       });
     }

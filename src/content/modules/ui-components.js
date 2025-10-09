@@ -555,17 +555,13 @@ export function injectAnalyzeButton() {
   // Konteyneri ana konteyner'a ekle
   mainContainer.appendChild(buttonsContainer);
   
-  // Ana konteyner'ı header'a ekle - yeni konum: suite-top-nav sonrası
-  const suiteTopNavElement = document.querySelector('#suite-top-nav');
-  const gaHeaderElement = suiteTopNavElement?.closest("ga-header");
+  // Ana konteyner'ı header'a ekle - yeni konum: analysis-area sonrası
+  const analysisAreaElement = document.querySelector(".analysis-area");
   
-  if (gaHeaderElement) {
-    gaHeaderElement.parentNode.insertBefore(mainContainer, gaHeaderElement.nextSibling);
-  } else if (suiteTopNavElement) {
-    // Fallback: ga-header bulunamazsa suite-top-nav'ın sonrasına ekle
-    suiteTopNavElement.parentNode.insertBefore(mainContainer, suiteTopNavElement.nextSibling);
-  } else {
-    console.warn('⚠️ suite-top-nav elementi bulunamadı, butonlar eklenemedi');
+  if (analysisAreaElement) {
+    analysisAreaElement.insertBefore(mainContainer, analysisAreaElement.firstChild);
+  }  else {
+    console.warn('⚠️ analysis-area elementi bulunamadı, butonlar eklenemedi');
     return;
   }
 
