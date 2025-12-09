@@ -426,8 +426,8 @@ function updateTableWithSelectedData(resultDiv, selectedData) {
     const controlSignificance = popup.querySelector('.control-row td:last-child');
     const variantSignificance = popup.querySelector('.variant-row td:last-child');
     
-    if (controlSignificance && selectedData.analysis.stats) {
-      controlSignificance.textContent = `${selectedData.analysis.stats.controlProbability}%`;
+    if (controlSignificance) {
+      controlSignificance.textContent = '-'; // Control significance gösterilmiyor
     }
     
     if (variantSignificance && selectedData.analysis.stats) {
@@ -480,8 +480,8 @@ function updateTableWithSelectedData(resultDiv, selectedData) {
       controlCR.textContent = `${selectedData.analysis.control.cr.toFixed(2)}%`;
     }
     
-    if (controlSignificance && selectedData.analysis.variants[0]?.stats) {
-      controlSignificance.textContent = `${selectedData.analysis.variants[0].stats.controlProbability}%`;
+    if (controlSignificance) {
+      controlSignificance.textContent = '-'; // Control significance gösterilmiyor
     }
   }
   

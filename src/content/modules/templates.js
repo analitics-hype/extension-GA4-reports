@@ -308,16 +308,7 @@ export async function getResultsTemplate(data, type='popup', metrics) {
                             <td><input type="number" class="table-input" value="${analysis.control?.conversions || 0}" data-type="control-conversions" /></td>
                             <td>${(analysis.control?.cr || 0).toFixed(2)}%</td>
                             <td>-</td>
-                            <td>${(() => {
-                              // For control, show average win probability across all binary comparisons
-                              if (!binaryWinnerProbabilities || binaryWinnerProbabilities.length === 0) return '0.0';
-                              
-                              // Calculate average control win probability across all binary comparisons
-                              const avgControlWinProb = binaryWinnerProbabilities.reduce((sum, result) => 
-                                sum + result.controlWinProbability, 0) / binaryWinnerProbabilities.length;
-                              
-                              return (avgControlWinProb * 100).toFixed(1);
-                            })()}%</td>
+                            <td>-</td>
                             <td>-</td>
                             <td>-</td>
                         </tr>

@@ -119,18 +119,10 @@ export async function recalculateResults(popup, data) {
       cr: controlCR
     };
     
-    // Binary winner probabilities hesapla ve control significance güncelle
-    const binaryWinnerProbabilities = await calculateBinaryWinnerProbabilities(data.analysis);
-    if (binaryWinnerProbabilities && binaryWinnerProbabilities.length > 0) {
-      // Calculate average control win probability across all binary comparisons
-      const avgControlWinProb = binaryWinnerProbabilities.reduce((sum, result) => 
-        sum + result.controlWinProbability, 0) / binaryWinnerProbabilities.length;
-      
-      // Update control row significance (6th column now)
-      const controlSignifCell = popup.querySelector('.control-row td:nth-child(6)');
-      if (controlSignifCell) {
-        controlSignifCell.textContent = `${(avgControlWinProb * 100).toFixed(1)}%`;
-      }
+    // Control significance gösterilmiyor, sadece "-" göster
+    const controlSignifCell = popup.querySelector('.control-row td:nth-child(6)');
+    if (controlSignifCell) {
+      controlSignifCell.textContent = '-';
     }
     
     // Toplam kullanıcı sayısını güncelle
@@ -232,7 +224,7 @@ async function recalculateSingleVariant(popup, data) {
   upliftCell.className = improvement >= 0 ? 'metric-change positive' : 'metric-change negative';
 
   // Significance sütunları (6. sütun)
-  popup.querySelector('.control-row td:nth-child(6)').textContent = `${stats.controlProbability.toFixed(1)}%`;
+  popup.querySelector('.control-row td:nth-child(6)').textContent = '-'; // Control significance gösterilmiyor
   popup.querySelector('.variant-row td:nth-child(6)').textContent = `${stats.variantProbability.toFixed(1)}%`;
   
   // Monthly ve Yearly sütunları (7. ve 8. sütun)
@@ -496,7 +488,7 @@ export function exportToCSV(data) {
     analysis.control.conversions, 
     `${analysis.control.cr.toFixed(2)}%`, 
     '-', 
-    `${analysis.variants?.[0]?.stats?.controlProbability || (analysis.stats?.controlProbability || 0)}%`
+    '-' // Control significance gösterilmiyor
   ]);
 
   // Eski format (tek varyant) kontrolü

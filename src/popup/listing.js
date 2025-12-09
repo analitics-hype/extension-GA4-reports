@@ -273,9 +273,7 @@ function updateTable(index, originalData) {
     const controlSignificance = document.querySelector('.control-row td:last-child');
     
     if (controlSignificance) {
-        const controlProb = selectedData.analysis.variants?.[0]?.stats?.controlProbability || 
-                           (selectedData.analysis.stats ? selectedData.analysis.stats.controlProbability : 0);
-        controlSignificance.textContent = `${controlProb}%`;
+        controlSignificance.textContent = '-'; // Control significance gösterilmiyor
     }
     
     // Tablo başlıklarını güncelle
