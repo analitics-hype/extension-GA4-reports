@@ -77,21 +77,27 @@ export function getReportInfo() {
 }
 
 /**
- * Tablo verilerini al (yeni GA4 tablo yapısı: mat-table + .cell-value)
+ * Tablo verilerini al - supports both old (SVG/cells-wrapper) and new (mat-table) GA4 table structures
  * @returns {Object} Tablo verileri
  */
 export function getTableData() {
-  // KPI başlıklarını al (thead'daki metrik sütunları)
+  const isNewTable = document.querySelector('td.adv-table-data-cell .cell-value');
+  if (isNewTable) {
+    return getTableDataNew();
+  }
+  return getTableDataOld();
+}
+
+/** New table: mat-table with .cell-value divs */
+function getTableDataNew() {
   const kpiHeaders = Array.from(
     document.querySelectorAll('thead th .header-display-labels xap-text-trigger')
   ).map(el => el.textContent.trim());
 
-  // Segment isimlerini al (option cell'lerdeki projected-content-container)
   const segmentNames = Array.from(
     document.querySelectorAll('tbody tr td.adv-table-option-cell .projected-content-container')
   ).map(el => el.textContent.trim());
 
-  // Tüm değerleri al (satır satır, data cell'lerdeki .cell-value)
   const allValues = [];
   document.querySelectorAll('tbody tr').forEach(row => {
     Array.from(row.querySelectorAll('td.adv-table-data-cell .cell-value')).forEach(el => {
@@ -101,28 +107,41 @@ export function getTableData() {
     });
   });
 
-  // Verileri yapılandır
-  const tableData = segmentNames.map((segment, segmentIndex) => {
-    const segmentData = {
-      segment: segment,
-      metrics: {}
-    };
+  return buildTableData(kpiHeaders, segmentNames, allValues);
+}
 
-    // Her KPI için değerleri eşleştir
+/** Old table: SVG-based .cells-wrapper with text.align-right */
+function getTableDataOld() {
+  const kpiHeaders = Array.from(
+    document.querySelectorAll('.column-headers-wrapper .header-value text')
+  ).map(el => el.textContent.trim());
+
+  const segmentNames = Array.from(
+    document.querySelectorAll('.row-headers-draw-area .row-header-column:first-child .header-value text.align-left:not(.row-index)')
+  ).map(el => el.textContent.trim());
+
+  const allValues = Array.from(
+    document.querySelectorAll('.cells-wrapper .cell text.align-right')
+  ).map(el => {
+    const rawValue = el.textContent.trim();
+    const cleanValue = rawValue.replace(/,/g, '');
+    return parseFloat(cleanValue);
+  });
+
+  return buildTableData(kpiHeaders, segmentNames, allValues);
+}
+
+/** Build segment + metrics structure from extracted arrays */
+function buildTableData(kpiHeaders, segmentNames, allValues) {
+  const tableData = segmentNames.map((segment, segmentIndex) => {
+    const segmentData = { segment, metrics: {} };
     kpiHeaders.forEach((kpi, kpiIndex) => {
-      // Her segment için KPI değerini bul
-      // Değer dizisindeki index = (segment index * KPI sayısı) + KPI index
       const valueIndex = segmentIndex * kpiHeaders.length + kpiIndex;
       segmentData.metrics[kpi] = allValues[valueIndex];
     });
-
     return segmentData;
   });
-
-  return {
-    kpis: kpiHeaders,
-    segments: tableData
-  };
+  return { kpis: kpiHeaders, segments: tableData };
 }
 
 /**

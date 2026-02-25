@@ -35,7 +35,8 @@ export function waitForAllElements(callback) {
     dateRange: '.primary-date-range-text',
     segments: '#segment_comparison [data-guidedhelpid="concept-chip-list-container-segment-comparison"] .chip-text-content .chip-title',
     kpis: '#value .chip-text-content .chip-title',
-    tableValues: 'td.adv-table-data-cell .cell-value'
+    // tableValues: either old (.cells-wrapper) or new (mat-table .cell-value) structure
+    tableValues: ['.cells-wrapper .cell text.align-right', 'td.adv-table-data-cell .cell-value']
   };
 
   let loadedElements = {};
@@ -47,10 +48,11 @@ export function waitForAllElements(callback) {
     attempts++;
     let allFound = true;
 
-    for (const [key, selector] of Object.entries(requiredSelectors)) {
+    for (const [key, selectorOrArray] of Object.entries(requiredSelectors)) {
       if (!loadedElements[key]) {
-        const elements = document.querySelectorAll(selector);
-        if (elements.length > 0) {
+        const selectors = Array.isArray(selectorOrArray) ? selectorOrArray : [selectorOrArray];
+        const hasMatch = selectors.some(sel => document.querySelectorAll(sel).length > 0);
+        if (hasMatch) {
           loadedElements[key] = true;
         } else {
           allFound = false;
