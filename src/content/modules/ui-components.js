@@ -1,5 +1,5 @@
 import { getReportInfo } from './data-extraction.js';
-import { checkKPIDataAndUpdateButton, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, consolidateData } from './data-processing.js';
+import { checkKPIDataAndUpdateButton, injectButtonStyles, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, consolidateData } from './data-processing.js';
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
 import { waitForAllElements } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
@@ -530,11 +530,13 @@ export function exportToCSV(data) {
  */
 export function injectAnalyzeButton() {
 
-  
   // Eğer butonlar zaten varsa tekrar ekleme
   if (document.querySelector('.ga4-abtest-main-container')) {
     return;
   }
+
+  // Inject styles early so buttons render styled from first paint
+  injectButtonStyles();
 
   // Ana konteyner oluştur - tüm butonları içerecek
   const mainContainer = document.createElement('div');

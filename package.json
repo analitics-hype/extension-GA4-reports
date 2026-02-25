@@ -1,6 +1,6 @@
 {
   "name": "ga4-abtest-analyzer",
-  "version": "1.0.0",
+  "version": "1.2",
   "description": "Google Analytics 4 AB Test sonuçlarını analiz eden ve yorumlayan Chrome eklentisi",
   "main": "index.js",
   "scripts": {

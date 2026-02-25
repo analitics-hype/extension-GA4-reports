@@ -570,6 +570,19 @@ export function prepareDirectAnalysisData(tableData) {
 }
 
 /**
+ * Inject button styles into document head (idempotent - runs once)
+ * Call early when UI is first created so buttons render styled from the start
+ */
+export function injectButtonStyles() {
+  if (document.getElementById('ga4-abtest-button-style') === null) {
+    const style = document.createElement('style');
+    style.setAttribute('id', 'ga4-abtest-button-style');
+    style.textContent = getResultsStyles();
+    document.head.appendChild(style);
+  }
+}
+
+/**
  * KPI verilerini kontrol et ve buton durumunu güncelle
  * Yeni yapıda artık sadece CSS stilleri eklenir, buton yönetimi UI components'da yapılır
  * @param {HTMLElement} buttonContainer - Ana buton konteyneri
@@ -577,14 +590,5 @@ export function prepareDirectAnalysisData(tableData) {
  * @param {Object} reportInfo - Rapor bilgileri
  */
 export function checkKPIDataAndUpdateButton(buttonContainer, tableData, reportInfo) {
-  // Buton stilleri için CSS ekle (sadece bir kez)
-  if (document.getElementById('ga4-abtest-button-style') === null) {
-    const style = document.createElement('style');
-    style.setAttribute('id', 'ga4-abtest-button-style');
-    style.textContent = getResultsStyles();
-    document.head.appendChild(style);
-  }
-  
-  // Artık buton yönetimi UI components'da yapılıyor
-  // Bu fonksiyon sadece stil ekleme için kullanılıyor
+  injectButtonStyles();
 }
