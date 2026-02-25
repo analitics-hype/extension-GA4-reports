@@ -35,7 +35,7 @@ export function waitForAllElements(callback) {
     dateRange: '.primary-date-range-text',
     segments: '#segment_comparison [data-guidedhelpid="concept-chip-list-container-segment-comparison"] .chip-text-content .chip-title',
     kpis: '#value .chip-text-content .chip-title',
-    tableValues: '.cells-wrapper .cell text.align-right'
+    tableValues: 'td.adv-table-data-cell .cell-value'
   };
 
   let loadedElements = {};

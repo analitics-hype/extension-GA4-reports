@@ -77,28 +77,28 @@ export function getReportInfo() {
 }
 
 /**
- * Tablo verilerini al
+ * Tablo verilerini al (yeni GA4 tablo yapısı: mat-table + .cell-value)
  * @returns {Object} Tablo verileri
  */
 export function getTableData() {
-  // KPI başlıklarını al
+  // KPI başlıklarını al (thead'daki metrik sütunları)
   const kpiHeaders = Array.from(
-    document.querySelectorAll('.column-headers-wrapper .header-value text')
+    document.querySelectorAll('thead th .header-display-labels xap-text-trigger')
   ).map(el => el.textContent.trim());
 
-  // Segment isimlerini al
+  // Segment isimlerini al (option cell'lerdeki projected-content-container)
   const segmentNames = Array.from(
-    document.querySelectorAll('.row-headers-draw-area .row-header-column:first-child .header-value text.align-left:not(.row-index)')
+    document.querySelectorAll('tbody tr td.adv-table-option-cell .projected-content-container')
   ).map(el => el.textContent.trim());
 
-  // Tüm değerleri al
-  const allValues = Array.from(
-    document.querySelectorAll('.cells-wrapper .cell text.align-right')
-  ).map(el => {
-    // Binlik ayracı olan virgülü kaldır ve sayıya çevir
-    const rawValue = el.textContent.trim();
-    const cleanValue = rawValue.replace(/,/g, '');
-    return parseFloat(cleanValue);
+  // Tüm değerleri al (satır satır, data cell'lerdeki .cell-value)
+  const allValues = [];
+  document.querySelectorAll('tbody tr').forEach(row => {
+    Array.from(row.querySelectorAll('td.adv-table-data-cell .cell-value')).forEach(el => {
+      const rawValue = el.textContent.trim();
+      const cleanValue = rawValue.replace(/,/g, '');
+      allValues.push(parseFloat(cleanValue));
+    });
   });
 
   // Verileri yapılandır
