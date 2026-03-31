@@ -79,65 +79,6 @@ export function saveKPIData(reportInfo, tableData, type) {
       storedData[reportInfo.reportName] = {};
     }
 
-    // Önceki konsolide edilmiş veriyi periods'a taşı (eğer varsa)
-    const existingReport = storedData[reportInfo.reportName];
-    if (existingReport.consolidatedData) {
-      // console.log('📦 [DEBUG] Önceki konsolide veri periods\'a aktarılıyor:', existingReport.consolidatedData.dateRange);
-      
-      // periods array'i oluştur veya genişlet
-      if (!existingReport.periods) {
-        existingReport.periods = [];
-      }
-      
-      // Konsolide edilmiş veriyi period formatına çevir
-      const periodData = {
-        dateRange: existingReport.consolidatedData.dateRange,
-        sessionData: {
-          reportName: existingReport.consolidatedData.reportName,
-          dateRange: existingReport.consolidatedData.dateRange,
-          segment: existingReport.consolidatedData.control.segment,
-          segments: existingReport.consolidatedData.segments,
-          value: existingReport.consolidatedData.control.sessions,
-          variants: existingReport.consolidatedData.variants.map(v => ({
-            segment: v.segment,
-            value: v.sessions
-          })),
-          tabName: existingReport.consolidatedData.sessionTab,
-          bussinessImpact: existingReport.consolidatedData.bussinessImpact
-        },
-        conversionData: {
-          reportName: existingReport.consolidatedData.reportName,
-          dateRange: existingReport.consolidatedData.dateRange,
-          segment: existingReport.consolidatedData.control.segment,
-          segments: existingReport.consolidatedData.segments,
-          value: existingReport.consolidatedData.control.conversions,
-          variants: existingReport.consolidatedData.variants.map(v => ({
-            segment: v.segment,
-            value: v.conversions
-          })),
-          tabName: existingReport.consolidatedData.conversionTab,
-          bussinessImpact: existingReport.consolidatedData.bussinessImpact
-        }
-      };
-      
-      // Bu period zaten mevcut mu kontrol et (aynı tarih aralığı)
-      const existingPeriodIndex = existingReport.periods.findIndex(p => 
-        p.dateRange === periodData.dateRange || 
-        p.sessionData?.dateRange === periodData.dateRange ||
-        p.conversionData?.dateRange === periodData.dateRange
-      );
-      
-      if (existingPeriodIndex === -1) {
-        existingReport.periods.push(periodData);
-        // console.log('📦 [DEBUG] Period eklendi:', periodData.dateRange);
-      } else {
-        // console.log('📦 [DEBUG] Period zaten mevcut:', periodData.dateRange);
-      }
-      
-      // Konsolide edilmiş veriyi temizle (artık periods'ta)
-      delete existingReport.consolidatedData;
-    }
-
     // Veri tipine göre kaydet
     if (type === 'session') {
       storedData[reportInfo.reportName].sessionData = newData;
@@ -191,12 +132,6 @@ export function prepareAnalysisData(storedData) {
   const reportData = storedData[reportName];
   if (!reportData) {
     throw new Error(`${reportName} için veri bulunamadı. Önce Session Al ve Dönüşüm Al butonlarını kullanın.`);
-  }
-  
-  // Konsolide edilmiş veri varsa onu kullan
-  if (reportData.consolidatedData) {
-    // console.log('📊 [DEBUG] Konsolide edilmiş veri kullanılıyor:', reportData.consolidatedData);
-    return prepareConsolidatedAnalysisData(reportData.consolidatedData);
   }
   
   // Normal veri kontrolü
@@ -261,257 +196,251 @@ export function prepareAnalysisData(storedData) {
 }
 
 /**
- * Farklı tarih aralıklarındaki verileri birleştir (Topla butonu için)
- * @param {Object} reportData - Mevcut rapor verisi
- * @returns {Object} Birleştirilmiş veriler
+ * Parse GA4 date range string ("Aug 24 - Sep 1, 2025") into start/end Date objects
+ * @param {string} dateRange - GA4 date range
+ * @returns {{ startDate: Date, endDate: Date }}
  */
-export function consolidateData(reportData) {
-  // console.log('🔗 [DEBUG] consolidateData başladı:', reportData);
-  
-  const { sessionData, conversionData, periods = [] } = reportData;
-  
-  // Validasyonlar
-  if (!sessionData || !conversionData) {
-    throw new Error('Session ve conversion verisi gerekli!');
-  }
-  
-  if (sessionData.tabName !== conversionData.tabName.replace('1-', '0-') && 
-      conversionData.tabName !== sessionData.tabName.replace('0-', '1-')) {
-    console.warn('Tab isimleri uyumsuz:', sessionData.tabName, conversionData.tabName);
-  }
-  
-  // Mevcut veri setini hazırla
-  const currentPeriod = {
-    sessionData: sessionData,
-    conversionData: conversionData,
-    dateRange: sessionData.dateRange
-  };
-  
-  // Tüm periyotları birleştir (periods + mevcut)
-  const allPeriods = [...periods, currentPeriod];
-  // console.log('🔗 [DEBUG] Birleştirilecek periyotlar:', allPeriods);
-  
-  // Tarih kontrolü ve sıralama
-  const sortedPeriods = validateAndSortPeriods(allPeriods);
-  
-  // Veri birleştirme
-  const consolidatedResult = mergePeriodsData(sortedPeriods, sessionData.tabName, conversionData.tabName);
-  
-  // console.log('🔗 [DEBUG] Birleştirme tamamlandı:', consolidatedResult);
-  return consolidatedResult;
-}
-
-/**
- * Periyotları validate et ve tarih sırasına göre sırala
- * @param {Array} periods - Periyot dizisi
- * @returns {Array} Sıralı ve validate edilmiş periyotlar
- */
-function validateAndSortPeriods(periods) {
-  // console.log('📅 [DEBUG] Tarih validasyonu başladı:', periods);
-  
-  // Tarih aralıklarını parse et
-  const parsedPeriods = periods.map((period, index) => {
-    const dateRange = period.dateRange || period.sessionData?.dateRange || period.conversionData?.dateRange;
-    if (!dateRange) {
-      throw new Error(`Periyot ${index + 1} için tarih aralığı bulunamadı`);
-    }
-    
-    const [startStr, endStr] = dateRange.split(' - ');
-    const startDate = parseDateString(startStr.trim());
-    const endDate = parseDateString(endStr.trim());
-    
-    return {
-      ...period,
-      dateRange,
-      startDate,
-      endDate,
-      index
-    };
-  });
-  
-  // Tarihe göre sırala
-  parsedPeriods.sort((a, b) => a.startDate - b.startDate);
-  
-  // Ardışıklık kontrolü
-  for (let i = 1; i < parsedPeriods.length; i++) {
-    const prevEnd = parsedPeriods[i - 1].endDate;
-    const currentStart = parsedPeriods[i].startDate;
-    
-    // Bir gün fark olmalı (prevEnd + 1 day = currentStart)
-    const nextDay = new Date(prevEnd);
-    nextDay.setDate(nextDay.getDate() + 1);
-    
-    if (Math.abs(nextDay - currentStart) > 24 * 60 * 60 * 1000) { // 1 günden fazla fark varsa
-      console.warn('⚠️ [DEBUG] Tarihler ardışık değil:', 
-        formatDate(prevEnd), '→', formatDate(currentStart));
-    }
-  }
-  
-  // console.log('📅 [DEBUG] Sıralı periyotlar:', parsedPeriods.map(p => p.dateRange));
-  return parsedPeriods;
-}
-
-/**
- * Tarih string'ini Date objesine çevir
- * @param {string} dateStr - "Aug 24" veya "Sep 1" formatında tarih
- * @returns {Date} Date objesi
- */
-function parseDateString(dateStr) {
-  // "Aug 24, 2025" formatını parse et
+export function parseDateRange(dateRange) {
   const months = {
     'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
     'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
   };
-  
-  const parts = dateStr.split(' ');
-  if (parts.length >= 2) {
-    const monthName = parts[0];
-    const day = parseInt(parts[1].replace(',', ''));
-    const year = parts[2] ? parseInt(parts[2]) : 2025; // Default year
-    
-    if (months[monthName] !== undefined) {
-      return new Date(year, months[monthName], day);
+  const monthNames = Object.keys(months);
+
+  // Handles both "Mar 22, 2026" (EN) and "22 Mar 2026" (TR/GA4) formats
+  function parseOne(str) {
+    const clean = str.trim().replace(',', '');
+    const parts = clean.split(' ');
+    let month, day, year;
+    if (monthNames.includes(parts[0])) {
+      // EN: "Mar 22 2026" or "Mar 22"
+      month = months[parts[0]];
+      day = parseInt(parts[1]);
+      year = parts[2] ? parseInt(parts[2]) : new Date().getFullYear();
+    } else {
+      // TR/GA4: "22 Mar 2026" or "22 Mar"
+      day = parseInt(parts[0]);
+      month = months[parts[1]];
+      year = parts[2] ? parseInt(parts[2]) : new Date().getFullYear();
     }
+    return new Date(year, month, day);
   }
-  
-  // Fallback - direkt Date constructor'a ver
-  return new Date(dateStr + ', 2025');
+
+  const [startStr, endStr] = dateRange.split(' - ');
+  return { startDate: parseOne(startStr), endDate: parseOne(endStr) };
 }
 
 /**
- * Date objesini string'e çevir
- * @param {Date} date - Date objesi
- * @returns {string} "Aug 24" formatında tarih
+ * Save current page data as a period row in the Topla table
+ * @param {Object} reportInfo - GA4 report info
+ * @param {Object} tableData - Table data from page
+ * @param {string} type - 'session' or 'conversion'
+ * @returns {Object} Updated topla periods array
  */
-function formatDate(date) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[date.getMonth()]} ${date.getDate()}`;
-}
+export function saveTopaPeriodData(reportInfo, tableData, type) {
+  const tabName = getTabName();
+  const segments = tableData.segments;
 
-/**
- * Periyotların verilerini birleştir
- * @param {Array} sortedPeriods - Sıralı periyotlar
- * @param {string} sessionTabName - Session tab ismi
- * @param {string} conversionTabName - Conversion tab ismi
- * @returns {Object} Birleştirilmiş veri
- */
-function mergePeriodsData(sortedPeriods, sessionTabName, conversionTabName) {
-  // console.log('🔢 [DEBUG] Veri birleştirme başladı');
-  
-  let totalSessionsControl = 0;
-  let totalConversionsControl = 0;
-  let totalSessionsVariants = {};
-  let totalConversionsVariants = {};
-  
-  const firstPeriod = sortedPeriods[0];
-  const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
-  const consolidatedDateRange = `${formatDate(firstPeriod.startDate)} - ${formatDate(lastPeriod.endDate)}, 2025`;
-  
-  // Her periyodun verilerini topla
-  sortedPeriods.forEach((period, index) => {
-    // console.log(`🔢 [DEBUG] Periyot ${index + 1} işleniyor:`, period.dateRange);
-    
-    const sessionData = period.sessionData;
-    const conversionData = period.conversionData;
-    
-    if (sessionData && conversionData) {
-      // Control grubu topla
-      totalSessionsControl += sessionData.value || 0;
-      totalConversionsControl += conversionData.value || 0;
-      
-      // Varyantları topla
-      if (sessionData.variants) {
-        sessionData.variants.forEach(variant => {
-          const segmentName = variant.segment;
-          if (!totalSessionsVariants[segmentName]) {
-            totalSessionsVariants[segmentName] = 0;
-          }
-          totalSessionsVariants[segmentName] += variant.value || 0;
-        });
-      }
-      
-      if (conversionData.variants) {
-        conversionData.variants.forEach(variant => {
-          const segmentName = variant.segment;
-          if (!totalConversionsVariants[segmentName]) {
-            totalConversionsVariants[segmentName] = 0;
-          }
-          totalConversionsVariants[segmentName] += variant.value || 0;
-        });
-      }
-    }
+  const control = segments.find(s =>
+    s.segment.toLowerCase().includes('v0') || s.segment.toLowerCase().includes('control')
+  );
+  const variants = segments.filter(s => {
+    const lower = s.segment.toLowerCase();
+    return !(lower.includes('v0') || lower.includes('control'));
   });
-  
-  // Birleştirilmiş veriyi oluştur
-  const consolidatedData = {
-    reportName: firstPeriod.sessionData.reportName,
-    dateRange: consolidatedDateRange,
-    segments: firstPeriod.sessionData.segments,
-    sessionTab: sessionTabName,
-    conversionTab: conversionTabName,
-    periodCount: sortedPeriods.length,
-    control: {
-      segment: firstPeriod.sessionData.segment, // Control segment adını ekle
-      sessions: totalSessionsControl,
-      conversions: totalConversionsControl
-    },
-    variants: Object.keys(totalSessionsVariants).map(segmentName => ({
-      segment: segmentName,
-      sessions: totalSessionsVariants[segmentName] || 0,
-      conversions: totalConversionsVariants[segmentName] || 0
-    })),
-    bussinessImpact: ""
+
+  if (!control) throw new Error('Kontrol grubu bulunamadı (V0/Control).');
+  if (variants.length === 0) throw new Error('Varyant grubu bulunamadı.');
+
+  const kpi = tableData.kpis[0];
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  if (!storedData[reportInfo.reportName]) storedData[reportInfo.reportName] = {};
+  if (!storedData[reportInfo.reportName].toplaPeriods) storedData[reportInfo.reportName].toplaPeriods = [];
+
+  const periods = storedData[reportInfo.reportName].toplaPeriods;
+  const dateRange = reportInfo.dateRange;
+
+  // Find or create period row for this date range
+  let period = periods.find(p => p.dateRange === dateRange);
+  if (!period) {
+    period = { dateRange, sessionData: null, conversionData: null };
+    periods.push(period);
+  }
+
+  const dataEntry = {
+    tabName,
+    controlSegment: control.segment,
+    controlValue: Math.round(control.metrics[kpi]),
+    variants: variants.map(v => ({ segment: v.segment, value: Math.round(v.metrics[kpi]) }))
   };
-  
-  // console.log('🔢 [DEBUG] Birleştirilmiş veri:', consolidatedData);
-  return consolidatedData;
+
+  if (type === 'session') {
+    period.sessionData = dataEntry;
+  } else {
+    period.conversionData = dataEntry;
+  }
+
+  // Sort periods by start date
+  periods.sort((a, b) => {
+    const aDate = parseDateRange(a.dateRange).startDate;
+    const bDate = parseDateRange(b.dateRange).startDate;
+    return aDate - bDate;
+  });
+
+  sessionStorage.setItem('ga4_abtest_data', JSON.stringify(storedData));
+  return periods;
 }
 
 /**
- * Konsolide edilmiş veriyi analiz formatına çevir
- * @param {Object} consolidatedData - Konsolide edilmiş veri
- * @returns {Object} Analiz için hazırlanmış veriler
+ * Get topla periods from storage
+ * @param {string} reportName - Report name
+ * @returns {Array} Periods array
  */
-function prepareConsolidatedAnalysisData(consolidatedData) {
-  // console.log('📊 [DEBUG] Konsolide veri analiz formatına çevriliyor:', consolidatedData);
-  
-  // Control segment'ini ekle
-  const segments = [{
-    segment: consolidatedData.control.segment || 'V0', // Control segment adı
-    metrics: {
-      'Sessions': consolidatedData.control.sessions,
-      'Conversions': consolidatedData.control.conversions
-    }
-  }];
-  
-  // Varyant segmentlerini ekle
-  if (consolidatedData.variants && consolidatedData.variants.length > 0) {
-    consolidatedData.variants.forEach(variant => {
-      segments.push({
-        segment: variant.segment,
-        metrics: {
-          'Sessions': variant.sessions,
-          'Conversions': variant.conversions
-        }
-      });
-    });
+export function getToplaPeriods(reportName) {
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  return storedData[reportName]?.toplaPeriods || [];
+}
+
+/**
+ * Delete a period row from topla table
+ * @param {string} reportName - Report name
+ * @param {string} dateRange - Date range to delete
+ * @returns {Array} Updated periods array
+ */
+export function deleteTopaPeriod(reportName, dateRange) {
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  if (!storedData[reportName]?.toplaPeriods) return [];
+  storedData[reportName].toplaPeriods = storedData[reportName].toplaPeriods.filter(p => p.dateRange !== dateRange);
+  sessionStorage.setItem('ga4_abtest_data', JSON.stringify(storedData));
+  return storedData[reportName].toplaPeriods;
+}
+
+/**
+ * Clear all topla periods for a report
+ * @param {string} reportName - Report name
+ */
+export function clearToplaPeriods(reportName) {
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  if (storedData[reportName]) {
+    delete storedData[reportName].toplaPeriods;
+    sessionStorage.setItem('ga4_abtest_data', JSON.stringify(storedData));
   }
-  
-  const analysisData = {
+}
+
+/**
+ * Validate periods are consecutive and determine analyzable range
+ * Returns the longest consecutive sub-range where every period has both session AND conversion
+ * @param {Array} periods - Sorted periods array
+ * @returns {{ valid: boolean, analyzablePeriods: Array, error: string|null }}
+ */
+export function validateToplaPeriods(periods) {
+  if (!periods || periods.length === 0) {
+    return { valid: false, analyzablePeriods: [], error: 'Henüz veri eklenmedi.' };
+  }
+
+  // Check segment consistency across periods
+  const segmentSets = [];
+  for (const p of periods) {
+    const data = p.sessionData || p.conversionData;
+    if (data) {
+      const names = [data.controlSegment, ...data.variants.map(v => v.segment)].sort().join(',');
+      segmentSets.push(names);
+    }
+  }
+  const uniqueSegments = [...new Set(segmentSets)];
+  if (uniqueSegments.length > 1) {
+    return { valid: false, analyzablePeriods: [], error: 'Segment isimleri tutarsız! Tüm dönemlerde aynı segmentler olmalı.' };
+  }
+
+  // Check tab name consistency
+  const sessionTabs = [...new Set(periods.filter(p => p.sessionData).map(p => p.sessionData.tabName))];
+  const conversionTabs = [...new Set(periods.filter(p => p.conversionData).map(p => p.conversionData.tabName))];
+  if (sessionTabs.length > 1) {
+    return { valid: false, analyzablePeriods: [], error: 'Session tab isimleri tutarsız!' };
+  }
+  if (conversionTabs.length > 1) {
+    return { valid: false, analyzablePeriods: [], error: 'Dönüşüm tab isimleri tutarsız!' };
+  }
+
+  // Find consecutive range with both session + conversion
+  const completePeriods = [];
+  for (const p of periods) {
+    if (p.sessionData && p.conversionData) {
+      completePeriods.push(p);
+    } else {
+      break; // Stop at first incomplete period
+    }
+  }
+
+  if (completePeriods.length === 0) {
+    return { valid: false, analyzablePeriods: [], error: 'Hiçbir dönemde hem session hem dönüşüm verisi yok.' };
+  }
+
+  // Check consecutive dates in complete periods
+  for (let i = 1; i < completePeriods.length; i++) {
+    const prevEnd = parseDateRange(completePeriods[i - 1].dateRange).endDate;
+    const currStart = parseDateRange(completePeriods[i].dateRange).startDate;
+    const nextDay = new Date(prevEnd);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    if (Math.abs(nextDay - currStart) > 24 * 60 * 60 * 1000) {
+      return { valid: false, analyzablePeriods: completePeriods.slice(0, i), error: `Tarihler ardışık değil: ${completePeriods[i - 1].dateRange} → ${completePeriods[i].dateRange}` };
+    }
+  }
+
+  return { valid: true, analyzablePeriods: completePeriods, error: null };
+}
+
+/**
+ * Build analysis data from topla periods (sum all periods)
+ * @param {Array} periods - Analyzable periods with both session + conversion
+ * @returns {Object} Analysis-ready data structure
+ */
+export function prepareToplaAnalysisData(periods) {
+  if (!periods || periods.length === 0) throw new Error('Analiz edilecek dönem yok.');
+
+  const firstPeriod = periods[0];
+  const lastPeriod = periods[periods.length - 1];
+  const controlSegment = firstPeriod.sessionData.controlSegment;
+  const variantNames = firstPeriod.sessionData.variants.map(v => v.segment);
+
+  let totalSessionControl = 0;
+  let totalConversionControl = 0;
+  const totalSessionVariants = {};
+  const totalConversionVariants = {};
+  variantNames.forEach(name => { totalSessionVariants[name] = 0; totalConversionVariants[name] = 0; });
+
+  for (const p of periods) {
+    totalSessionControl += p.sessionData.controlValue || 0;
+    totalConversionControl += p.conversionData.controlValue || 0;
+    p.sessionData.variants.forEach(v => { totalSessionVariants[v.segment] = (totalSessionVariants[v.segment] || 0) + (v.value || 0); });
+    p.conversionData.variants.forEach(v => { totalConversionVariants[v.segment] = (totalConversionVariants[v.segment] || 0) + (v.value || 0); });
+  }
+
+  const segments = [{ segment: controlSegment, metrics: { 'Sessions': Math.round(totalSessionControl), 'Conversions': Math.round(totalConversionControl) } }];
+  variantNames.forEach(name => {
+    segments.push({ segment: name, metrics: { 'Sessions': Math.round(totalSessionVariants[name]), 'Conversions': Math.round(totalConversionVariants[name]) } });
+  });
+
+  const firstDate = parseDateRange(firstPeriod.dateRange);
+  const lastDate = parseDateRange(lastPeriod.dateRange);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dateRange = `${months[firstDate.startDate.getMonth()]} ${firstDate.startDate.getDate()} - ${months[lastDate.endDate.getMonth()]} ${lastDate.endDate.getDate()}, ${lastDate.endDate.getFullYear()}`;
+
+  // Test duration = total days from first start to last end (inclusive)
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const testDuration = Math.round((lastDate.endDate - firstDate.startDate) / msPerDay) + 1;
+
+  return {
     kpis: ['Sessions', 'Conversions'],
-    segments: segments,
-    sessionTab: consolidatedData.sessionTab,
-    conversionTab: consolidatedData.conversionTab,
-    // Ek bilgileri koru - ÖNEMLI: periodCount'u koru ki formatData anlasın
-    dateRange: consolidatedData.dateRange,
-    periodCount: consolidatedData.periodCount,
-    reportName: consolidatedData.reportName,
-    bussinessImpact: consolidatedData.bussinessImpact
+    segments,
+    sessionTab: firstPeriod.sessionData.tabName,
+    conversionTab: firstPeriod.conversionData.tabName,
+    dateRange,
+    testDuration,
+    periodCount: periods.length,
+    bussinessImpact: ''
   };
-  
-  // console.log('📊 [DEBUG] Analiz verisi hazır:', analysisData);
-  return analysisData;
 }
 
 /**

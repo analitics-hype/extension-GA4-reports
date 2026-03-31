@@ -1,5 +1,5 @@
 import { getReportInfo } from './data-extraction.js';
-import { checkKPIDataAndUpdateButton, injectButtonStyles, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, consolidateData } from './data-processing.js';
+import { checkKPIDataAndUpdateButton, injectButtonStyles, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, saveTopaPeriodData, getToplaPeriods, deleteTopaPeriod, clearToplaPeriods, validateToplaPeriods, prepareToplaAnalysisData, parseDateRange } from './data-processing.js';
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
 import { waitForAllElements } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
@@ -391,9 +391,8 @@ export async function formatData(data) {
     // console.log('📅 [DEBUG] Konsolide edilmiş tarih aralığı kullanılıyor:', actualDateRange);
   }
   
-  const testDuration = calculateTestDuration(actualDateRange);
-
-  // testDuration'ı orijinal data objesine set et
+  // Prefer pre-calculated testDuration (e.g. from topla), else derive from dateRange string
+  const testDuration = data.testDuration != null ? data.testDuration : calculateTestDuration(actualDateRange);
   data.testDuration = testDuration;
 
   const dates = actualDateRange.split(' - ');
@@ -675,46 +674,7 @@ export function injectAnalyzeButton() {
           }, 100);
           break;
         case 'topla':
-          // console.log('🔗 [DEBUG] Topla butonu tıklandı - Session storage içeriği:');
-          try {
-            let currentStorage;
-            try {
-              currentStorage = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-            } catch (parseError) {
-              console.error('❌ [DEBUG] Topla - SessionStorage parse hatası:', parseError);
-              showNotification('Veri formatı bozuk. Lütfen temizleyip tekrar deneyin.', 'error');
-              break;
-            }
-            // console.log('📦 [DEBUG] Mevcut session storage:', currentStorage);
-            
-            const reportName = results.data.reportName;
-            const reportData = currentStorage[reportName];
-            
-            if (!reportData || !reportData.sessionData || !reportData.conversionData) {
-              showNotification('Toplamak için hem session hem de conversion verisi gerekli!', 'error');
-              break;
-            }
-            
-            // Veriyi konsolide et
-            const consolidatedData = consolidateData(reportData);
-            
-            // Konsolide edilmiş veriyi storage'a kaydet
-            currentStorage[reportName].consolidatedData = consolidatedData;
-            sessionStorage.setItem('ga4_abtest_data', JSON.stringify(currentStorage));
-            
-            // console.log('🔗 [DEBUG] Konsolidasyon tamamlandı:', consolidatedData);
-            
-            // Butonları yeniden oluştur (Topla butonunu ve Analiz Et'i güncellemek için)
-            setTimeout(() => {
-              addDataButtons(buttonsContainer, results.data.tableData, results.data);
-            }, 100);
-            
-            showNotification(`${consolidatedData.periodCount} dönem birleştirildi: ${consolidatedData.dateRange}`, 'success');
-            
-          } catch (error) {
-            console.error('🔗 [DEBUG] Topla hatası:', error);
-            showNotification('Toplarken hata oluştu: ' + error.message, 'error');
-          }
+          openToplaPanel(results.data);
           break;
         case 'temizle':
           // console.log('🗑️ [DEBUG] Temizle butonu - Session storage temizleniyor...');
@@ -1039,23 +999,6 @@ function addDataButtons(container, tableData, reportInfo) {
   
   // Topla ve Temizle butonlarını en sona ekle
   addToplaTemizleButtons(container);
-  
-  // Her açılışta Topla butonunun durumunu güncelle
-  setTimeout(() => {
-    const toplaButton = container.querySelector('.topla-button');
-    if (toplaButton) {
-      const results = getReportInfo();
-      if (results.success) {
-        const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-        const reportData = storedData[results.data.reportName];
-        
-        if (reportData && reportData.consolidatedData) {
-          // console.log('🔄 [DEBUG] Buton grubu açılışında Topla butonu güncelleniyor');
-          updateToplaButton(toplaButton, reportData.consolidatedData.dateRange, reportData.consolidatedData.periodCount);
-        }
-      }
-    }
-  }, 100);
 }
 
 /**
@@ -1063,7 +1006,6 @@ function addDataButtons(container, tableData, reportInfo) {
  * @param {HTMLElement} container - Button container
  */
 function addToplaTemizleButtons(container) {
-  // Topla ve Temizle butonlarını ekle (eğer yoksa)
   const hasTopla = container.querySelector('.topla-button');
   const hasTemizle = container.querySelector('.temizle-button');
   
@@ -1071,52 +1013,38 @@ function addToplaTemizleButtons(container) {
     const toplaButton = createButton('Topla', 'topla');
     toplaButton.classList.add('topla-button');
     
-    // Button içeriği container'ı
     const toplaContent = document.createElement('div');
     toplaContent.className = 'button-content';
     
-    // Icon
     const toplaImg = document.createElement('img');
     toplaImg.src = "https://useruploads.vwo.io/useruploads/529944/images/5316b95da0557fd6cce236e3f4c5ad9a_group402515603.svg";
     toplaImg.className = 'button-icon';
     toplaImg.alt = 'Topla icon';
     
-    // Text container (sadece title, subtitle yok)
     const toplaTextContainer = document.createElement('div');
     toplaTextContainer.className = 'button-text';
-    
-    // Main title
     const toplaTitle = document.createElement('span');
     toplaTitle.className = 'button-title';
     toplaTitle.textContent = 'Topla';
-    
-    // Assemble text container
     toplaTextContainer.appendChild(toplaTitle);
-    
-    // Assemble button content
-    toplaContent.appendChild(toplaImg);
-    toplaContent.appendChild(toplaTextContainer);
-    
-    // Clear button and add new content
-    toplaButton.innerHTML = '';
-    toplaButton.appendChild(toplaContent);
-    
-    // Add tooltip with dynamic date information
-    addTooltipToButton(toplaButton);
-    
-    // İlk oluşturulduğunda mevcut consolidatedData kontrolü
+
+    // Subtitle: show period count if data exists
     const results = getReportInfo();
     if (results.success) {
-      const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-      const reportData = storedData[results.data.reportName];
-      
-      // Eğer consolidatedData varsa butonu güncelle
-      if (reportData && reportData.consolidatedData) {
-        // console.log('🔄 [DEBUG] İlk oluşturma sırasında consolidatedData bulundu, buton güncelleniyor');
-        updateToplaButton(toplaButton, reportData.consolidatedData.dateRange, reportData.consolidatedData.periodCount);
+      const periods = getToplaPeriods(results.data.reportName);
+      if (periods.length > 0) {
+        const sub = document.createElement('span');
+        sub.className = 'button-subtitle';
+        sub.textContent = `${periods.length} dönem`;
+        sub.style.cssText = 'font-size:10px;color:#666;margin-top:2px;';
+        toplaTextContainer.appendChild(sub);
       }
     }
     
+    toplaContent.appendChild(toplaImg);
+    toplaContent.appendChild(toplaTextContainer);
+    toplaButton.innerHTML = '';
+    toplaButton.appendChild(toplaContent);
     container.appendChild(toplaButton);
   }
   
@@ -1124,408 +1052,331 @@ function addToplaTemizleButtons(container) {
     const temizleButton = createButton('Temizle', 'temizle');
     temizleButton.classList.add('temizle-button');
     
-    // Button içeriği container'ı
     const temizleContent = document.createElement('div');
     temizleContent.className = 'button-content';
     
-    // Icon
     const temizleImg = document.createElement('img');
     temizleImg.src = "https://useruploads.vwo.io/useruploads/529944/images/c7353fa6be18961df1d8296d409b2789_group402515604.svg";
     temizleImg.className = 'button-icon';
     temizleImg.alt = 'Temizle icon';
     
-    // Text container (sadece title, subtitle yok)
     const temizleTextContainer = document.createElement('div');
     temizleTextContainer.className = 'button-text';
-    
-    // Main title
     const temizleTitle = document.createElement('span');
     temizleTitle.className = 'button-title';
     temizleTitle.textContent = 'Temizle';
-    
-    // Assemble text container
     temizleTextContainer.appendChild(temizleTitle);
     
-    // Assemble button content
     temizleContent.appendChild(temizleImg);
     temizleContent.appendChild(temizleTextContainer);
-    
-    // Clear button and add new content
     temizleButton.innerHTML = '';
     temizleButton.appendChild(temizleContent);
-    
     container.appendChild(temizleButton);
   }
   
-  // AB Test Analiz Et butonunu en sona ekle
+  // Analiz Et button (for single-period session+conversion flow)
   const hasAnalyze = container.querySelector('.ga4-abtest-button.analyze:not(.analyze-main):not(.analyze-direct)');
-  
   if (!hasAnalyze) {
-    // Storage'dan mevcut verileri al
     const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-    
-    // Rapor bilgilerini al
     const results = getReportInfo();
     if (results.success) {
       const reportInfo = results.data;
-      
-      // Analiz Et butonu
       const analyzeDataButton = createButton('Analiz Et', 'analyze');
       const hasSessionData = !!(storedData[reportInfo.reportName]?.sessionData);
       const hasConversionData = !!(storedData[reportInfo.reportName]?.conversionData);
       const shouldEnable = hasSessionData && hasConversionData;
-      
       analyzeDataButton.disabled = !shouldEnable;
-      if (analyzeDataButton.disabled) {
-          analyzeDataButton.classList.add('disabled');
-      }
-      
-      console.log('🔍 [DEBUG] Analiz Et butonu durumu:', {
-        reportName: reportInfo.reportName,
-        hasSessionData,
-        hasConversionData,
-        shouldEnable,
-        disabled: analyzeDataButton.disabled
-      });
-      
+      if (analyzeDataButton.disabled) analyzeDataButton.classList.add('disabled');
       container.appendChild(analyzeDataButton);
     }
   }
 }
 
+// ─── Topla Panel ────────────────────────────────────────────────────────────
+
 /**
- * Topla butonuna tooltip ekle - periods listesini göster
- * @param {HTMLElement} button - Topla butonu
+ * Open the Topla panel (tooltip-style popup below the button)
+ * @param {Object} reportInfo - Current report info from getReportInfo().data
  */
-function addTooltipToButton(button) {
-  // Tooltip elementini oluştur
-  const tooltip = document.createElement('div');
-  tooltip.className = 'topla-tooltip';
-  tooltip.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    background: white;
-    color: #333;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 12px;
-    z-index: 10000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-    max-width: 300px;
-    white-space: normal;
-    line-height: 1.4;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border: 1px solid #e0e0e0;
+function openToplaPanel(reportInfo) {
+  // Close existing panel if open
+  const existing = document.getElementById('topla-panel');
+  if (existing) { existing.remove(); document.getElementById('topla-panel-overlay')?.remove(); }
+
+  const reportName = reportInfo.reportName;
+  const periods = getToplaPeriods(reportName);
+
+  // Overlay to close on outside click
+  const overlay = document.createElement('div');
+  overlay.id = 'topla-panel-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;background:transparent;';
+  document.body.appendChild(overlay);
+
+  // Panel element
+  const panel = document.createElement('div');
+  panel.id = 'topla-panel';
+  panel.style.cssText = `
+    position:fixed; z-index:9999; background:#fff; border-radius:12px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.18); border:1px solid #e0e0e0;
+    padding:20px; min-width:500px; max-width:90vw; max-height:80vh; overflow-y:auto;
+    font-family:sans-serif; font-size:14px; color:#333;
   `;
-  
-  // Arrow oku ekle
-  const arrow = document.createElement('div');
-  arrow.className = 'tooltip-arrow';
-  arrow.style.cssText = `
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 6px solid white;
-    margin-bottom: -1px;
-  `;
-  tooltip.appendChild(arrow);
-  
-  // Arrow border (gölge için)
-  const arrowBorder = document.createElement('div');
-  arrowBorder.className = 'tooltip-arrow-border';
-  arrowBorder.style.cssText = `
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 7px solid transparent;
-    border-right: 7px solid transparent;
-    border-bottom: 7px solid #e0e0e0;
-    margin-bottom: 0px;
-  `;
-  tooltip.appendChild(arrowBorder);
-  
-  // Tooltip'i body'e ekle (overflow problemini önlemek için)
-  document.body.appendChild(tooltip);
-  
-  // Tooltip pozisyon hesaplama fonksiyonu
-  function updateTooltipPosition() {
-    const buttonRect = button.getBoundingClientRect();
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const arrowElement = tooltip.querySelector('.tooltip-arrow');
-    const arrowBorderElement = tooltip.querySelector('.tooltip-arrow-border');
-    
-    // Butonun altında ortalayarak konumlandır
-    let left = buttonRect.left + (buttonRect.width / 2) - (tooltipRect.width / 2);
-    let top = buttonRect.bottom + 8; // 8px boşluk
-    
-    // Ekran sınırları kontrolü
-    if (left < 10) {
-      left = 10;
-    } else if (left + tooltipRect.width > window.innerWidth - 10) {
-      left = window.innerWidth - tooltipRect.width - 10;
-    }
-    
-    if (top + tooltipRect.height > window.innerHeight - 10) {
-      // Eğer altında yer yoksa, üstte göster
-      top = buttonRect.top - tooltipRect.height - 8;
-      // Arrow'u ters çevir (tooltip üstteyken arrow aşağı bakar)
-      if (arrowElement) {
-        arrowElement.style.bottom = 'auto';
-        arrowElement.style.top = '100%';
-        arrowElement.style.borderBottom = 'none';
-        arrowElement.style.borderTop = '6px solid white';
-        arrowElement.style.marginTop = '-1px';
-        arrowElement.style.marginBottom = 'auto';
-      }
-      
-      // Arrow border'ı da güncelle
-      if (arrowBorderElement) {
-        arrowBorderElement.style.bottom = 'auto';
-        arrowBorderElement.style.top = '100%';
-        arrowBorderElement.style.borderBottom = 'none';
-        arrowBorderElement.style.borderTop = '7px solid #e0e0e0';
-        arrowBorderElement.style.marginTop = '0px';
-        arrowBorderElement.style.marginBottom = 'auto';
-      }
-    } else {
-      // Normal pozisyon (altta) - arrow tooltip'in üstünde, aşağı bakar
-      if (arrowElement) {
-        arrowElement.style.top = 'auto';
-        arrowElement.style.bottom = '100%';
-        arrowElement.style.borderTop = 'none';
-        arrowElement.style.borderBottom = '6px solid white';
-        arrowElement.style.marginBottom = '-1px';
-        arrowElement.style.marginTop = 'auto';
-      }
-      
-      // Arrow border'ı da güncelle
-      if (arrowBorderElement) {
-        arrowBorderElement.style.top = 'auto';
-        arrowBorderElement.style.bottom = '100%';
-        arrowBorderElement.style.borderTop = 'none';
-        arrowBorderElement.style.borderBottom = '7px solid #e0e0e0';
-        arrowBorderElement.style.marginBottom = '0px';
-        arrowBorderElement.style.marginTop = 'auto';
-      }
-    }
-    
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
+  document.body.appendChild(panel);
+
+  // Position panel below the Topla button
+  const toplaBtn = document.querySelector('.topla-button');
+  if (toplaBtn) {
+    const rect = toplaBtn.getBoundingClientRect();
+    panel.style.top = `${rect.bottom + 8}px`;
+    panel.style.left = `${Math.max(10, rect.left - 100)}px`;
+  } else {
+    panel.style.top = '100px';
+    panel.style.left = '100px';
   }
-  
-  // Mouse events
-  button.addEventListener('mouseenter', () => {
-    updateTooltipContent(tooltip);
-    updateTooltipPosition();
-    
-    // Position güncellendikten sonra göster
-    setTimeout(() => {
-      tooltip.style.opacity = '1';
-    }, 10);
-  });
-  
-  button.addEventListener('mouseleave', () => {
-    tooltip.style.opacity = '0';
-  });
-  
-  // Scroll ve resize durumlarında pozisyonu güncelle
-  window.addEventListener('scroll', () => {
-    if (tooltip.style.opacity === '1') {
-      updateTooltipPosition();
-    }
-  });
-  
-  window.addEventListener('resize', () => {
-    if (tooltip.style.opacity === '1') {
-      updateTooltipPosition();
-    }
-  });
-  
-  // Cleanup için tooltip referansını button'a kaydet
-  button._tooltip = tooltip;
+
+  overlay.addEventListener('click', () => { panel.remove(); overlay.remove(); });
+
+  renderToplaPanelContent(panel, reportInfo);
 }
 
 /**
- * Tooltip içeriğini güncelle
- * @param {HTMLElement} tooltip - Tooltip elementi
+ * Render/refresh the Topla panel content (table + buttons)
  */
-function updateTooltipContent(tooltip) {
-  const results = getReportInfo();
-  if (!results.success) return;
-  
-  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-  const reportData = storedData[results.data.reportName];
-  
-  if (!reportData) {
-    tooltip.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 4px; color: #333;">Başlangıç ve bitiş aralığı</div>
-      <div style="color: #999;">Henüz veri eklenmedi</div>
-    `;
-    tooltip.style.opacity = '1';
-    return;
+function renderToplaPanelContent(panel, reportInfo) {
+  const reportName = reportInfo.reportName;
+  const periods = getToplaPeriods(reportName);
+  const validation = validateToplaPeriods(periods);
+
+  // Determine segment names from first period that has data
+  let segmentNames = [];
+  for (const p of periods) {
+    const d = p.sessionData || p.conversionData;
+    if (d) { segmentNames = [d.controlSegment, ...d.variants.map(v => v.segment)]; break; }
   }
-  
-  let periodsToShow = [];
-  
-  // Periods array'dan verileri al
-  if (reportData.periods && reportData.periods.length > 0) {
-    reportData.periods.forEach((period, index) => {
-      periodsToShow.push({
-        index: index + 1,
-        dateRange: period.dateRange
-      });
+
+  // Determine tab names for headers
+  let sessionTabLabel = 'Sessions';
+  let conversionTabLabel = 'Dönüşüm';
+  for (const p of periods) {
+    if (p.sessionData) { sessionTabLabel = p.sessionData.tabName.includes('-') ? p.sessionData.tabName.split('-')[1] : p.sessionData.tabName; }
+    if (p.conversionData) { conversionTabLabel = p.conversionData.tabName.includes('-') ? p.conversionData.tabName.split('-')[1] : p.conversionData.tabName; }
+    if (p.sessionData && p.conversionData) break;
+  }
+
+  // Build HTML
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h3 style="margin:0;font-size:18px;font-weight:700;color:#111;">Dönem Toplama Tablosu</h3>
+    <button id="topla-panel-close" style="background:none;border:none;cursor:pointer;font-size:20px;color:#666;padding:4px 8px;">✕</button>
+  </div>`;
+
+  if (periods.length === 0 && segmentNames.length === 0) {
+    // No data yet - show help text and current date range
+    const currentDate = reportInfo.dateRange || '';
+    html += `<p style="color:#888;margin-bottom:12px;">Henüz veri eklenmedi. Sayfadaki tarih aralığını seçip aşağıdaki butonlarla veri ekleyin.</p>`;
+    if (currentDate) {
+      html += `<p style="color:#333;font-weight:600;">Mevcut sayfa tarihi: <span style="color:#2196F3;">${currentDate}</span></p>`;
+    }
+  } else {
+    // Build table
+    const colCount = segmentNames.length;
+    html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:center;">`;
+    
+    // Table header
+    html += `<thead><tr style="background:#f5f5f5;">
+      <th style="padding:10px 8px;border:1px solid #e0e0e0;min-width:140px;">Tarih Aralığı</th>`;
+    segmentNames.forEach(seg => {
+      html += `<th style="padding:10px 4px;border:1px solid #e0e0e0;" colspan="1">${seg}<br><span style="font-weight:400;font-size:11px;color:#666;">${sessionTabLabel}</span></th>`;
     });
-  }
-  
-  // Mevcut session/conversion verilerini ekle (eğer periods'ta yoksa)
-  if (reportData.sessionData && reportData.conversionData) {
-    const currentDateRange = reportData.sessionData.dateRange;
-    const existsInPeriods = periodsToShow.some(p => p.dateRange === currentDateRange);
-    
-    if (!existsInPeriods) {
-      periodsToShow.push({
-        index: periodsToShow.length + 1,
-        dateRange: currentDateRange
+    segmentNames.forEach(seg => {
+      html += `<th style="padding:10px 4px;border:1px solid #e0e0e0;" colspan="1">${seg}<br><span style="font-weight:400;font-size:11px;color:#666;">${conversionTabLabel}</span></th>`;
+    });
+    html += `<th style="padding:10px 4px;border:1px solid #e0e0e0;width:40px;"></th></tr></thead>`;
+
+    // Table body
+    html += `<tbody>`;
+    periods.forEach((period, idx) => {
+      const isAnalyzable = validation.analyzablePeriods.includes(period);
+      const rowBg = isAnalyzable ? '#fff' : '#fff8f0';
+      html += `<tr style="background:${rowBg};">`;
+      html += `<td style="padding:8px;border:1px solid #e0e0e0;font-weight:600;white-space:nowrap;">${period.dateRange}</td>`;
+      
+      // Session values
+      segmentNames.forEach(seg => {
+        let val = '-';
+        if (period.sessionData) {
+          if (period.sessionData.controlSegment === seg) val = (period.sessionData.controlValue || 0).toLocaleString();
+          else { const v = period.sessionData.variants.find(x => x.segment === seg); if (v) val = (v.value || 0).toLocaleString(); }
+        }
+        const cellColor = period.sessionData ? '#059669' : '#ccc';
+        html += `<td style="padding:8px;border:1px solid #e0e0e0;color:${cellColor};font-weight:500;">${val}</td>`;
       });
-    }
-  }
-  
-  // Konsolide edilmiş veri varsa onu da göster
-  let consolidatedInfo = '';
-  if (reportData.consolidatedData) {
-    consolidatedInfo = `
-      <div style="border-top: 1px solid #e0e0e0; margin-top: 8px; padding-top: 8px;">
-        <div style="font-weight: bold; color: #2196F3;">Birleştirilmiş:</div>
-        <div style="color: #333;">${reportData.consolidatedData.dateRange}</div>
-        <div style="font-size: 10px; color: #666;">${reportData.consolidatedData.periodCount} dönem</div>
-      </div>
-    `;
-  }
-  
-  // Tooltip içeriği
-  tooltip.innerHTML = `
-    <div style="font-weight: bold; margin-bottom: 8px; color: #333;">Başlangıç ve bitiş aralığı</div>
-    ${periodsToShow.length > 0 ? 
-      periodsToShow.map(period => `
-        <div style="margin-bottom: 4px; color: #333;">
-          <span style="display: inline-block; width: 20px; color: #2196F3; font-weight: bold;">${String(period.index).padStart(2, '0')}</span>
-          ${formatDateRangeForTooltip(period.dateRange)}
-        </div>
-      `).join('') :
-      '<div style="color: #999;">Henüz veri eklenmedi</div>'
-    }
-    ${consolidatedInfo}
-  `;
-  
-  tooltip.style.opacity = '1';
-}
 
-/**
- * Tarih aralığını tooltip için formatla
- * @param {string} dateRange - Orijinal tarih aralığı
- * @returns {string} Formatlanmış tarih aralığı
- */
-function formatDateRangeForTooltip(dateRange) {
-  try {
-    // "Aug 24 - Aug 31, 2025" formatını "24.08.2025 - 31.08.2025" formatına çevir
-    const [start, end] = dateRange.split(' - ');
-    const startFormatted = formatSingleDateForTooltip(start.trim());
-    const endFormatted = formatSingleDateForTooltip(end.trim());
-    
-    return `${startFormatted} - ${endFormatted}`;
-  } catch (error) {
-    console.warn('Tarih formatlanırken hata:', error);
-    return dateRange; // Hata durumunda orijinal formatı döndür
-  }
-}
+      // Conversion values
+      segmentNames.forEach(seg => {
+        let val = '-';
+        if (period.conversionData) {
+          if (period.conversionData.controlSegment === seg) val = (period.conversionData.controlValue || 0).toLocaleString();
+          else { const v = period.conversionData.variants.find(x => x.segment === seg); if (v) val = (v.value || 0).toLocaleString(); }
+        }
+        const cellColor = period.conversionData ? '#2563eb' : '#ccc';
+        html += `<td style="padding:8px;border:1px solid #e0e0e0;color:${cellColor};font-weight:500;">${val}</td>`;
+      });
 
-/**
- * Tek tarihi tooltip için formatla
- * @param {string} dateStr - "Aug 24" veya "Aug 31, 2025" formatında tarih
- * @returns {string} "24.08.2025" formatında tarih
- */
-function formatSingleDateForTooltip(dateStr) {
-  const months = {
-    'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-    'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-    'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
-  };
-  
-  // "Aug 31, 2025" veya "Aug 31" formatını parse et
-  const parts = dateStr.split(' ');
-  if (parts.length >= 2) {
-    const monthName = parts[0];
-    const day = parts[1].replace(',', '');
-    const year = parts[2] || '2025'; // Eğer yıl yoksa 2025 varsayımı
-    
-    if (months[monthName]) {
-      return `${day.padStart(2, '0')}.${months[monthName]}.${year}`;
+      // Delete button
+      html += `<td style="padding:4px;border:1px solid #e0e0e0;">
+        <button class="topla-delete-row" data-date="${period.dateRange}" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px;padding:2px 6px;" title="Satırı sil">✕</button>
+      </td>`;
+      html += `</tr>`;
+    });
+
+    // Totals row (sum of analyzable periods)
+    if (validation.analyzablePeriods.length > 0) {
+      html += `<tr style="background:#f0fdf4;font-weight:700;">`;
+      html += `<td style="padding:8px;border:1px solid #e0e0e0;">TOPLAM (${validation.analyzablePeriods.length} dönem)</td>`;
+      
+      segmentNames.forEach(seg => {
+        let total = 0;
+        validation.analyzablePeriods.forEach(p => {
+          if (p.sessionData) {
+            if (p.sessionData.controlSegment === seg) total += p.sessionData.controlValue || 0;
+            else { const v = p.sessionData.variants.find(x => x.segment === seg); if (v) total += v.value || 0; }
+          }
+        });
+        html += `<td style="padding:8px;border:1px solid #e0e0e0;color:#059669;">${total.toLocaleString()}</td>`;
+      });
+      segmentNames.forEach(seg => {
+        let total = 0;
+        validation.analyzablePeriods.forEach(p => {
+          if (p.conversionData) {
+            if (p.conversionData.controlSegment === seg) total += p.conversionData.controlValue || 0;
+            else { const v = p.conversionData.variants.find(x => x.segment === seg); if (v) total += v.value || 0; }
+          }
+        });
+        html += `<td style="padding:8px;border:1px solid #e0e0e0;color:#2563eb;">${total.toLocaleString()}</td>`;
+      });
+      html += `<td style="border:1px solid #e0e0e0;"></td></tr>`;
     }
-  }
-  
-  return dateStr; // Parse edilemezse orijinal formatı döndür
-}
 
-/**
- * Topla butonunu güncelle - tarih aralığını göster ve tooltip'i güncelle
- * @param {HTMLElement} button - Topla butonu
- * @param {string} dateRange - Birleştirilmiş tarih aralığı
- * @param {number} periodCount - Birleştirilen dönem sayısı
- */
-function updateToplaButton(button, dateRange, periodCount) {
-  // console.log('🔄 [DEBUG] Topla butonu güncelleniyor:', { dateRange, periodCount });
-  
-  // Button içeriğini güncelle
-  const buttonContent = button.querySelector('.button-content');
-  if (buttonContent) {
-    const textContainer = buttonContent.querySelector('.button-text');
-    if (textContainer) {
-      // Mevcut title'ı bul veya oluştur
-      let titleElement = textContainer.querySelector('.button-title');
-      if (!titleElement) {
-        titleElement = document.createElement('span');
-        titleElement.className = 'button-title';
-        textContainer.appendChild(titleElement);
+    html += `</tbody></table></div>`;
+  }
+
+  // Validation warning
+  if (validation.error && periods.length > 0) {
+    html += `<div style="margin-top:12px;padding:8px 12px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;font-size:12px;color:#92400e;">⚠️ ${validation.error}</div>`;
+  }
+
+  // Current page date range info
+  const currentDate = reportInfo.dateRange || '';
+  if (currentDate) {
+    html += `<div style="margin-top:12px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:12px;color:#1e40af;">
+      Sayfa tarihi: <strong>${currentDate}</strong>
+    </div>`;
+  }
+
+  // Action buttons row
+  html += `<div style="display:flex;gap:10px;margin-top:16px;align-items:center;">
+    <button id="topla-session-btn" style="padding:8px 16px;border-radius:20px;border:1px solid #ddd;background:#fff;color:#0E2C2D;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.2s;">Session Al</button>
+    <button id="topla-conversion-btn" style="padding:8px 16px;border-radius:20px;border:1px solid #ddd;background:#fff;color:#0E2C2D;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.2s;">Dönüşüm Al</button>
+    <button id="topla-clear-btn" style="padding:8px 16px;border-radius:20px;border:1px solid #ef4444;background:#fff;color:#ef4444;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.2s;">Temizle</button>
+    <div style="flex:1;"></div>
+    <button id="topla-analyze-btn" style="padding:10px 24px;border-radius:20px;border:none;background:${validation.valid && validation.analyzablePeriods.length > 0 ? 'linear-gradient(135deg, #ea4335, #d62516)' : '#9aa0a6'};color:#fff;font-weight:700;font-size:14px;cursor:${validation.valid && validation.analyzablePeriods.length > 0 ? 'pointer' : 'not-allowed'};transition:all 0.2s;"
+      ${validation.valid && validation.analyzablePeriods.length > 0 ? '' : 'disabled'}>Analiz Et</button>
+  </div>`;
+
+  panel.innerHTML = html;
+
+  // Event listeners
+  panel.querySelector('#topla-panel-close').addEventListener('click', () => {
+    panel.remove();
+    document.getElementById('topla-panel-overlay')?.remove();
+    // Refresh main buttons to update period count subtitle
+    const buttonsContainer = document.querySelector('.ga4-abtest-buttons-container');
+    if (buttonsContainer) {
+      const results = getReportInfo();
+      if (results.success) addDataButtons(buttonsContainer, results.data.tableData, results.data);
+    }
+  });
+
+  // Session Al inside panel
+  panel.querySelector('#topla-session-btn').addEventListener('click', () => {
+    try {
+      const results = getReportInfo();
+      if (!results.success) { showNotification(results.error, 'error'); return; }
+      saveTopaPeriodData(results.data, results.data.tableData, 'session');
+      showNotification('Session verisi tabloya eklendi.', 'success');
+      renderToplaPanelContent(panel, results.data);
+    } catch (e) { showNotification(e.message, 'error'); }
+  });
+
+  // Dönüşüm Al inside panel
+  panel.querySelector('#topla-conversion-btn').addEventListener('click', () => {
+    try {
+      const results = getReportInfo();
+      if (!results.success) { showNotification(results.error, 'error'); return; }
+      saveTopaPeriodData(results.data, results.data.tableData, 'conversion');
+      showNotification('Dönüşüm verisi tabloya eklendi.', 'success');
+      renderToplaPanelContent(panel, results.data);
+    } catch (e) { showNotification(e.message, 'error'); }
+  });
+
+  // Clear all
+  panel.querySelector('#topla-clear-btn').addEventListener('click', () => {
+    clearToplaPeriods(reportName);
+    showNotification('Tüm dönem verileri temizlendi.', 'success');
+    renderToplaPanelContent(panel, reportInfo);
+  });
+
+  // Delete individual rows
+  panel.querySelectorAll('.topla-delete-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      deleteTopaPeriod(reportName, btn.dataset.date);
+      showNotification('Satır silindi.', 'success');
+      const results = getReportInfo();
+      renderToplaPanelContent(panel, results.success ? results.data : reportInfo);
+    });
+  });
+
+  // Analyze button inside panel
+  const analyzeBtn = panel.querySelector('#topla-analyze-btn');
+  if (analyzeBtn && !analyzeBtn.disabled) {
+    analyzeBtn.addEventListener('click', async () => {
+      try {
+        const latestValidation = validateToplaPeriods(getToplaPeriods(reportName));
+        if (!latestValidation.valid || latestValidation.analyzablePeriods.length === 0) {
+          showNotification(latestValidation.error || 'Analiz yapılamaz.', 'error');
+          return;
+        }
+
+        const analysisData = prepareToplaAnalysisData(latestValidation.analyzablePeriods);
+        const analysis = await analyzeABTest(analysisData);
+        if (!analysis) { showNotification('Analiz yapılamadı', 'error'); return; }
+
+        // Close panel
+        panel.remove();
+        document.getElementById('topla-panel-overlay')?.remove();
+
+        const contentElement = document.getElementById('ga4-abtest-content');
+        if (!contentElement) { showNotification('Popup elementi bulunamadı.', 'error'); return; }
+
+        await displayResults(contentElement, {
+          reportName: reportName,
+          dateRange: analysisData.dateRange,
+          sessionTab: analysisData.sessionTab.includes('-') ? analysisData.sessionTab.split('-')[1] : analysisData.sessionTab,
+          conversionTab: analysisData.conversionTab.includes('-') ? analysisData.conversionTab.split('-')[1] : analysisData.conversionTab,
+          analysis,
+          bussinessImpact: '',
+          periodCount: analysisData.periodCount,
+          testDuration: analysisData.testDuration
+        });
+
+        const overlayEl = document.getElementById('ga4-abtest-overlay');
+        const resultsEl = document.getElementById('ga4-abtest-results');
+        if (overlayEl) overlayEl.style.display = 'block';
+        if (resultsEl) resultsEl.style.display = 'flex';
+      } catch (e) {
+        showNotification('Analiz hatası: ' + e.message, 'error');
       }
-      
-      // Subtitle'ı bul veya oluştur
-      let subtitleElement = textContainer.querySelector('.button-subtitle');
-      if (!subtitleElement) {
-        subtitleElement = document.createElement('span');
-        subtitleElement.className = 'button-subtitle';
-        textContainer.appendChild(subtitleElement);
-      }
-      
-      // İçerikleri güncelle
-      titleElement.textContent = 'Topla';
-      subtitleElement.textContent = `${periodCount} dönem: ${dateRange}`;
-      subtitleElement.style.fontSize = '10px';
-      subtitleElement.style.color = '#666';
-      subtitleElement.style.marginTop = '2px';
-      subtitleElement.style.maxWidth = '120px';
-      subtitleElement.style.overflow = 'hidden';
-      subtitleElement.style.textOverflow = 'ellipsis';
-      subtitleElement.style.whiteSpace = 'nowrap';
-      
-      // console.log('🔄 [DEBUG] Topla butonu güncellendi');
-    }
-  }
-  
-  // Tooltip içeriğini de güncelle (eğer varsa)
-  const tooltip = button.querySelector('.topla-tooltip');
-  if (tooltip) {
-    updateTooltipContent(tooltip);
+    });
   }
 }
 

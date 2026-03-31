@@ -308,13 +308,23 @@ export function calculateTestDuration(dateRange) {
     'Ara': 'Dec'
   };
 
+  // English month names for EN format detection ("Mar 22, 2026")
+  const enMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
   function parseDate(dateStr) {
-    // "1 Oca 2024" formatındaki tarihi parse et
-    const parts = dateStr.trim().split(' ');
+    const str = dateStr.trim().replace(',', '');
+    const parts = str.split(' ');
+    if (enMonths.includes(parts[0])) {
+      // EN format: "Mar 22 2026" or "Mar 22"
+      const month = parts[0];
+      const day = parseInt(parts[1]);
+      const year = parts[2] ? parseInt(parts[2]) : new Date().getFullYear();
+      return new Date(`${month} ${day}, ${year}`);
+    }
+    // TR format: "1 Oca 2024"
     const day = parts[0];
     const month = monthMap[parts[1]] || parts[1];
-    const year = parts[2] || new Date().getFullYear(); // Yıl yoksa mevcut yılı kullan
-    
+    const year = parts[2] || new Date().getFullYear();
     return new Date(`${month} ${day}, ${year}`);
   }
 

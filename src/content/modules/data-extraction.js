@@ -77,6 +77,40 @@ export function getReportInfo() {
 }
 
 /**
+ * Parse a locale-formatted number string, handling both dot and comma as thousands separators.
+ * EN: "5,459" or "1,234.56"  |  TR: "5.459" or "1.234,56"
+ * @param {string} raw - Raw number text from DOM
+ * @returns {number}
+ */
+function parseLocaleNumber(raw) {
+  const str = raw.trim();
+  const lastDot = str.lastIndexOf('.');
+  const lastComma = str.lastIndexOf(',');
+
+  if (lastDot > -1 && lastComma > -1) {
+    // Both present: the last separator is the decimal mark
+    if (lastDot > lastComma) {
+      return parseFloat(str.replace(/,/g, ''));
+    }
+    return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+  }
+
+  if (lastComma > -1) {
+    // Only comma: if followed by exactly 3 digits at end → thousands separator
+    if (/,\d{3}$/.test(str)) return parseFloat(str.replace(/,/g, ''));
+    return parseFloat(str.replace(',', '.'));
+  }
+
+  if (lastDot > -1) {
+    // Only dot: if followed by exactly 3 digits at end → thousands separator
+    if (/\.\d{3}$/.test(str)) return parseFloat(str.replace(/\./g, ''));
+    return parseFloat(str);
+  }
+
+  return parseFloat(str) || 0;
+}
+
+/**
  * Tablo verilerini al - supports both old (SVG/cells-wrapper) and new (mat-table) GA4 table structures
  * @returns {Object} Tablo verileri
  */
@@ -101,9 +135,7 @@ function getTableDataNew() {
   const allValues = [];
   document.querySelectorAll('tbody tr').forEach(row => {
     Array.from(row.querySelectorAll('td.adv-table-data-cell .cell-value')).forEach(el => {
-      const rawValue = el.textContent.trim();
-      const cleanValue = rawValue.replace(/,/g, '');
-      allValues.push(parseFloat(cleanValue));
+      allValues.push(parseLocaleNumber(el.textContent));
     });
   });
 
@@ -122,11 +154,7 @@ function getTableDataOld() {
 
   const allValues = Array.from(
     document.querySelectorAll('.cells-wrapper .cell text.align-right')
-  ).map(el => {
-    const rawValue = el.textContent.trim();
-    const cleanValue = rawValue.replace(/,/g, '');
-    return parseFloat(cleanValue);
-  });
+  ).map(el => parseLocaleNumber(el.textContent));
 
   return buildTableData(kpiHeaders, segmentNames, allValues);
 }
