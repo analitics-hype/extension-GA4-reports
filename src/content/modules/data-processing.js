@@ -231,6 +231,37 @@ export function parseDateRange(dateRange) {
 }
 
 /**
+ * Same control / variant picking as saveKPIData (handles long GA4 labels like "V0 to click")
+ */
+function pickControlAndVariantsForTopla(segments) {
+  const control = segments.find(segment =>
+    segment.segment.toLowerCase().includes('v0') ||
+    segment.segment.toLowerCase().includes('control')
+  );
+  const variants = segments.filter(segment => {
+    const segmentLower = segment.segment.toLowerCase();
+    return !(segmentLower.includes('v0') || segmentLower.includes('control')) &&
+      (segmentLower.includes('v1') ||
+        segmentLower.includes('v2') ||
+        segmentLower.includes('v3') ||
+        segmentLower.includes('variant') ||
+        segmentLower.includes('totals'));
+  });
+  return { control, variants };
+}
+
+/**
+ * Map GA4 segment labels to stable V0 / V1 / V2 keys for storage and cross-period validation
+ */
+function canonicalVariantLabel(rawName, index) {
+  const lower = rawName.toLowerCase();
+  if (/\bv3\b/.test(lower)) return 'V3';
+  if (/\bv2\b/.test(lower)) return 'V2';
+  if (/\bv1\b/.test(lower) || lower.includes('totals')) return 'V1';
+  return `V${index + 1}`;
+}
+
+/**
  * Save current page data as a period row in the Topla table
  * @param {Object} reportInfo - GA4 report info
  * @param {Object} tableData - Table data from page
@@ -240,19 +271,17 @@ export function parseDateRange(dateRange) {
 export function saveTopaPeriodData(reportInfo, tableData, type) {
   const tabName = getTabName();
   const segments = tableData.segments;
-
-  const control = segments.find(s =>
-    s.segment.toLowerCase().includes('v0') || s.segment.toLowerCase().includes('control')
-  );
-  const variants = segments.filter(s => {
-    const lower = s.segment.toLowerCase();
-    return !(lower.includes('v0') || lower.includes('control'));
-  });
-
-  if (!control) throw new Error('Kontrol grubu bulunamadı (V0/Control).');
-  if (variants.length === 0) throw new Error('Varyant grubu bulunamadı.');
-
   const kpi = tableData.kpis[0];
+
+  const { control, variants } = pickControlAndVariantsForTopla(segments);
+
+  if (!control) {
+    throw new Error('Kontrol grubu bulunamadı. V0 veya Control içeren segment gerekli.');
+  }
+  if (variants.length === 0) {
+    throw new Error('Varyant grubu bulunamadı. V1, V2, Variant veya Totals içeren segment gerekli.');
+  }
+
   const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
   if (!storedData[reportInfo.reportName]) storedData[reportInfo.reportName] = {};
   if (!storedData[reportInfo.reportName].toplaPeriods) storedData[reportInfo.reportName].toplaPeriods = [];
@@ -269,9 +298,12 @@ export function saveTopaPeriodData(reportInfo, tableData, type) {
 
   const dataEntry = {
     tabName,
-    controlSegment: control.segment,
+    controlSegment: 'V0',
     controlValue: Math.round(control.metrics[kpi]),
-    variants: variants.map(v => ({ segment: v.segment, value: Math.round(v.metrics[kpi]) }))
+    variants: variants.map((v, i) => ({
+      segment: canonicalVariantLabel(v.segment, i),
+      value: Math.round(v.metrics[kpi])
+    }))
   };
 
   if (type === 'session') {
