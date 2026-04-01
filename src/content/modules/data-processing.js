@@ -316,6 +316,24 @@ export function deleteTopaPeriod(reportName, dateRange) {
 }
 
 /**
+ * Clear only conversion data for one period row (keep session data)
+ * @param {string} reportName - Report name
+ * @param {string} dateRange - Period date range key
+ * @returns {Array} Updated periods array
+ */
+export function clearTopaPeriodConversion(reportName, dateRange) {
+  const storedData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+  const periods = storedData[reportName]?.toplaPeriods;
+  if (!periods) return [];
+  const period = periods.find(p => p.dateRange === dateRange);
+  if (period) {
+    period.conversionData = null;
+    sessionStorage.setItem('ga4_abtest_data', JSON.stringify(storedData));
+  }
+  return storedData[reportName].toplaPeriods;
+}
+
+/**
  * Clear all topla periods for a report
  * @param {string} reportName - Report name
  */

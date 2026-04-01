@@ -1,5 +1,5 @@
 import { getReportInfo } from './data-extraction.js';
-import { checkKPIDataAndUpdateButton, injectButtonStyles, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, saveTopaPeriodData, getToplaPeriods, deleteTopaPeriod, clearToplaPeriods, validateToplaPeriods, prepareToplaAnalysisData, parseDateRange } from './data-processing.js';
+import { checkKPIDataAndUpdateButton, injectButtonStyles, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, saveTopaPeriodData, getToplaPeriods, deleteTopaPeriod, clearTopaPeriodConversion, clearToplaPeriods, validateToplaPeriods, prepareToplaAnalysisData, parseDateRange } from './data-processing.js';
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
 import { waitForAllElements } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
@@ -1190,7 +1190,8 @@ function renderToplaPanelContent(panel, reportInfo) {
     segmentNames.forEach(seg => {
       html += `<th style="padding:10px 4px;border:1px solid #e0e0e0;" colspan="1">${seg}<br><span style="font-weight:400;font-size:11px;color:#666;">${conversionTabLabel}</span></th>`;
     });
-    html += `<th style="padding:10px 4px;border:1px solid #e0e0e0;width:40px;"></th></tr></thead>`;
+    html += `<th style="padding:8px 4px;border:1px solid #e0e0e0;width:44px;font-size:11px;color:#2563eb;font-weight:600;" title="Bu dönem için sadece dönüşüm verisini sil (session kalır)">Dönüşüm<br>sil</th>`;
+    html += `<th style="padding:10px 4px;border:1px solid #e0e0e0;width:40px;" title="Tüm satırı sil">Satır</th></tr></thead>`;
 
     // Table body
     html += `<tbody>`;
@@ -1222,9 +1223,16 @@ function renderToplaPanelContent(panel, reportInfo) {
         html += `<td style="padding:8px;border:1px solid #e0e0e0;color:${cellColor};font-weight:500;">${val}</td>`;
       });
 
-      // Delete button
+      // Clear conversion only (session stays)
+      const convClearDisabled = !period.conversionData ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : 'style="cursor:pointer;"';
       html += `<td style="padding:4px;border:1px solid #e0e0e0;">
-        <button class="topla-delete-row" data-date="${period.dateRange}" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px;padding:2px 6px;" title="Satırı sil">✕</button>
+        <button type="button" class="topla-clear-conversion" data-date="${period.dateRange}" ${convClearDisabled}
+          style="background:none;border:none;color:#2563eb;font-size:16px;padding:2px 6px;" title="Bu dönemin dönüşüm verisini sil (session kalır)">✕</button>
+      </td>`;
+
+      // Delete full row
+      html += `<td style="padding:4px;border:1px solid #e0e0e0;">
+        <button type="button" class="topla-delete-row" data-date="${period.dateRange}" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px;padding:2px 6px;" title="Satırı tamamen sil">✕</button>
       </td>`;
       html += `</tr>`;
     });
@@ -1254,7 +1262,7 @@ function renderToplaPanelContent(panel, reportInfo) {
         });
         html += `<td style="padding:8px;border:1px solid #e0e0e0;color:#2563eb;">${total.toLocaleString()}</td>`;
       });
-      html += `<td style="border:1px solid #e0e0e0;"></td></tr>`;
+      html += `<td style="border:1px solid #e0e0e0;"></td><td style="border:1px solid #e0e0e0;"></td></tr>`;
     }
 
     html += `</tbody></table></div>`;
@@ -1324,6 +1332,18 @@ function renderToplaPanelContent(panel, reportInfo) {
     clearToplaPeriods(reportName);
     showNotification('Tüm dönem verileri temizlendi.', 'success');
     renderToplaPanelContent(panel, reportInfo);
+  });
+
+  // Clear conversion only for one period
+  panel.querySelectorAll('.topla-clear-conversion').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      if (btn.disabled) return;
+      e.stopPropagation();
+      clearTopaPeriodConversion(reportName, btn.dataset.date);
+      showNotification('Bu dönemin dönüşüm verisi silindi; session verisi korundu.', 'success');
+      const results = getReportInfo();
+      renderToplaPanelContent(panel, results.success ? results.data : reportInfo);
+    });
   });
 
   // Delete individual rows
