@@ -3,6 +3,7 @@ import { setupResultEventListeners } from '../content/modules/event-handlers';
 import { getResultsTemplate } from '../content/modules/templates';
 import { getResultsStyles } from '../content/modules/styles';
 import { recalculateResults } from '../content/modules/ui-components';
+import { getAuthHeaders } from '../utils/auth-store.js';
 import './listing.css';
 let data = [];
 let reportCache = {}; // Rapor verilerini önbelleğe almak için
@@ -13,7 +14,8 @@ const apiUrl = process.env.API_URL;
 // Backend'den verileri çek
 async function fetchReports() {
     try {
-        const response = await fetch(`${apiUrl}/reports`);
+        const headers = await getAuthHeaders();
+        const response = await fetch(`${apiUrl}/reports`, { headers });
         const result = await response.json();
         if (result.success) {
             data = result.data;
@@ -35,7 +37,8 @@ async function fetchReport(id) {
         }
         
         // const response = await fetch(`http://localhost:3000/api/reports/${id}`);
-        const response = await fetch(`${apiUrl}/reports/${id}`);
+        const headers = await getAuthHeaders();
+        const response = await fetch(`${apiUrl}/reports/${id}`, { headers });
         const result = await response.json();
         // console.log("result",result);
         
@@ -92,11 +95,10 @@ async function updateReportStatus(id, newStatus) {
     try {
   
 
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}/reports/${id}/status`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({ status: newStatus })
         });
         // console.log(response);

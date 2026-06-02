@@ -3,6 +3,7 @@
  */
 
 import { showNotification } from './ui-components.js';
+import { getAuthHeaders } from '../../utils/auth-store.js';
 
 /**
  * AI ile yorum al
@@ -10,7 +11,6 @@ import { showNotification } from './ui-components.js';
  * @returns {Promise<string>} AI yorumu
  */
 export async function getAIComment(data) {
-  // Veriyi backend formatına dönüştür
   const backendData = {
     reportName: data.reportName,
     dateRange: data.dateRange,
@@ -26,26 +26,22 @@ export async function getAIComment(data) {
     }
   };
 
-  // Geriye dönük uyumluluk için (eski sistem için)
   if (data.analysis.variant && !data.analysis.variants) {
     backendData.analysis.variant = data.analysis.variant;
     backendData.analysis.improvement = data.analysis.improvement;
     backendData.analysis.stats = data.analysis.stats;
-  } 
-  // Yeni çoklu varyant sistemi için - sadece genel stats'ı ayarla
-  else if (data.analysis.variants && data.analysis.variants.length > 0) {
+  } else if (data.analysis.variants && data.analysis.variants.length > 0) {
     const firstVariant = data.analysis.variants[0];
     backendData.analysis.variant = firstVariant;
     backendData.analysis.improvement = firstVariant.improvement;
     backendData.analysis.stats = firstVariant.stats;
   }
 
-  // Backend AI endpoint'ine gönder
+  const headers = await getAuthHeaders();
+
   return fetch(process.env.API_URL + '/reports/ai-comment', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(backendData)
   })
   .then(response => response.json())
@@ -69,7 +65,6 @@ export async function getAIComment(data) {
  * @param {Object} data - Gönderilecek veriler
  */
 export async function sendReportToBackend(data) {
-  // Veriyi backend formatına dönüştür
   const backendData = {
     reportName: data.reportName,
     dateRange: data.dateRange,
@@ -82,54 +77,53 @@ export async function sendReportToBackend(data) {
     conversionTab: data.conversionTab,
     analysis: {
       control: data.analysis.control,
-      // Yeni çoklu varyant desteği - her variant kendi stats'ı ile birlikte
       variants: data.analysis.variants || []
     }
   };
   
-  // Geriye dönük uyumluluk için (eski sistem için)
   if (data.analysis.variant && !data.analysis.variants) {
     backendData.analysis.variant = data.analysis.variant;
     backendData.analysis.improvement = data.analysis.improvement;
     backendData.analysis.stats = data.analysis.stats;
-  } 
-  // Yeni çoklu varyant sistemi için - sadece genel stats'ı ayarla
-  else if (data.analysis.variants && data.analysis.variants.length > 0) {
-    // Eğer variants dizisi varsa, ilk varyantın improvement ve stats değerlerini genel analysis için kullan
+  } else if (data.analysis.variants && data.analysis.variants.length > 0) {
     const firstVariant = data.analysis.variants[0];
     backendData.analysis.variant = firstVariant;
     backendData.analysis.improvement = firstVariant.improvement;
     backendData.analysis.stats = firstVariant.stats;
-    
-    // ÖNEMLI: Her variant'ın kendi stats verisi korunuyor
-    // Bu, variants dizisinde zaten mevcut olduğu için ekstra bir işlem gerektirmiyor
+  }
+
+  const headers = await getAuthHeaders();
+
+  if (!headers.Authorization) {
+    showNotification('Rapor kaydetmek için extension popup\'tan giriş yapın.', 'error');
+    throw new Error('Not authenticated');
   }
   
-  // Backend API'ye gönder
   return fetch(process.env.API_URL + '/reports', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(backendData)
   })
-  .then(response => response.json())
-  .then(data => {
+  .then(async (response) => {
+    const data = await response.json();
     if (data.success) {
       showNotification('Rapor başarıyla kaydedildi!', 'success');
       return { success: true, data };
-    } else {
-      if (data.error && data.error.includes('duplicate key error')) {
-        showNotification('Bu isimde bir rapor zaten mevcut!', 'error');
-      } else {
-        showNotification('Rapor kaydedilirken hata oluştu: ' + (data.error || 'Bilinmeyen hata'), 'error');
-      }
-      throw new Error(data.error || 'Bilinmeyen hata');
     }
+    if (response.status === 401) {
+      showNotification('Oturum süresi doldu. Extension popup\'tan tekrar giriş yapın.', 'error');
+    } else if (data.error && data.error.includes('duplicate key error')) {
+      showNotification('Bu isimde bir rapor zaten mevcut!', 'error');
+    } else {
+      showNotification('Rapor kaydedilirken hata oluştu: ' + (data.error || 'Bilinmeyen hata'), 'error');
+    }
+    throw new Error(data.error || 'Bilinmeyen hata');
   })
   .catch(error => {
-    console.error('Rapor gönderilirken hata:', error);
-    showNotification('Sunucu bağlantısında hata oluştu.', 'error');
+    if (error.message !== 'Not authenticated') {
+      console.error('Rapor gönderilirken hata:', error);
+      showNotification('Sunucu bağlantısında hata oluştu.', 'error');
+    }
     throw error;
   });
-} 
+}

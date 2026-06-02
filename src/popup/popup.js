@@ -1,13 +1,74 @@
 // Stil dosyasını import et
 import './popup.css';
-
-// // Popup.js artık boş olabilir çünkü tüm işlevsellik content.js'e taşındı 
+import {
+  loginToApi,
+  logoutFromApi,
+  getStoredUsername,
+  isLoggedIn,
+} from '../utils/auth-store.js';
 
 // Global variables
 let currentAbTestCookies = {};
 
+// Auth UI in popup
+async function refreshAuthUI() {
+  const loggedIn = await isLoggedIn();
+  const username = await getStoredUsername();
+  const authStatus = document.getElementById('authStatus');
+  const authForm = document.getElementById('authForm');
+  const logoutBtn = document.getElementById('authLogoutBtn');
+  const authError = document.getElementById('authError');
+
+  if (loggedIn) {
+    authStatus.textContent = `Giriş: ${username || 'Kullanıcı'}`;
+    authStatus.classList.add('logged-in');
+    authForm.style.display = 'none';
+    logoutBtn.style.display = 'block';
+  } else {
+    authStatus.textContent = 'Rapor kaydetmek için giriş yapın';
+    authStatus.classList.remove('logged-in');
+    authForm.style.display = 'block';
+    logoutBtn.style.display = 'none';
+  }
+  if (authError) authError.style.display = 'none';
+}
+
+function setupAuthHandlers() {
+  document.getElementById('authLoginBtn')?.addEventListener('click', async () => {
+    const username = document.getElementById('authUsername')?.value?.trim();
+    const password = document.getElementById('authPassword')?.value;
+    const authError = document.getElementById('authError');
+
+    if (!username || !password) {
+      if (authError) {
+        authError.textContent = 'Kullanıcı adı ve şifre gerekli';
+        authError.style.display = 'block';
+      }
+      return;
+    }
+
+    try {
+      await loginToApi(username, password);
+      document.getElementById('authPassword').value = '';
+      await refreshAuthUI();
+    } catch (err) {
+      if (authError) {
+        authError.textContent = err.message || 'Giriş başarısız';
+        authError.style.display = 'block';
+      }
+    }
+  });
+
+  document.getElementById('authLogoutBtn')?.addEventListener('click', async () => {
+    await logoutFromApi();
+    await refreshAuthUI();
+  });
+}
+
 // Options sayfası linkini düzenle
 document.addEventListener('DOMContentLoaded', () => {
+  setupAuthHandlers();
+  refreshAuthUI();
   const optionsLink = document.getElementById('optionsLink');
   if (optionsLink) {
       optionsLink.addEventListener('click', (e) => {
