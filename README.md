@@ -33,23 +33,45 @@ Bu Chrome eklentisi, Google Analytics 4 (GA4) üzerinde AB test sonuçlarını a
 1. Proje klasörüne gidin:
 
    ```
-   cd ga4-abtest-extension/webpack-extension
+   cd extension-GA4-reports
    ```
 2. Gerekli bağımlılıkları yükleyin:
 
    ```
    npm install
    ```
-3. Geliştirme sunucusunu başlatın:
+
+### Dev / Prod ortamı
+
+| Komut | Ortam | API | Dashboard |
+|-------|--------|-----|-----------|
+| `npm run dev` | **development** | `http://localhost:3000/api` | `http://localhost:3001` |
+| `npm run build:dev` | **development** (tek seferlik build) | aynı | aynı |
+| `npm run build` / `npm run build:prod` | **production** | Railway API | abtestcalculator.com.tr |
+
+Ortam dosyaları:
+
+- `.env.development` — local URL'ler (`npm run dev`)
+- `.env.production` — canlı URL'ler (`npm run build`)
+- `.env.local` — kişisel override (gitignore'da, isteğe bağlı)
+
+Build sırasında konsolda hangi URL'lerin kullanıldığı yazdırılır:
+
+```
+[extension] development → API=http://localhost:3000/api | Dashboard=http://localhost:3001
+```
+
+3. Geliştirme (watch + localhost):
 
    ```
    npm run dev
    ```
-4. Üretim sürümü oluşturmak için:
+4. Canlıya paketleme:
 
    ```
    npm run build
    ```
+5. Chrome'da `dist` klasörünü yeniden yükleyin.
 
 ## Kullanım
 

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>GA4 AB Test Analyzer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 360px;
+      padding: 14px;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #111827;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #250c4b, #3d1c6b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon svg { width: 20px; height: 20px; }
+    .title { font-size: 15px; font-weight: 700; color: #250c4b; }
+    .sub { font-size: 11px; color: #6b7280; }
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+    }
+    .card p {
+      font-size: 13px;
+      line-height: 1.55;
+      color: #6b7280;
+    }
+    .card strong { color: #111827; }
+    .hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    a {
+      color: #250c4b;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </div>
+    <div>
+      <div class="title">Hype AB Test</div>
+      <div class="sub">GA4 Analytics Extension</div>
+    </div>
+  </div>
+  <div class="card">
+    <p>
+      Bu eklenti yalnızca <strong>Google Analytics 4</strong> rapor sayfalarında çalışır.
+      Segment karşılaştırma raporunu açtığınızda araç çubuğu aktif olur.
+    </p>
+    <p class="hint">
+      Dashboard: <a href="https://www.abtestcalculator.com.tr/dashboard" target="_blank" rel="noopener">abtestcalculator.com.tr</a>
+    </p>
+  </div>
+</body>
+</html>

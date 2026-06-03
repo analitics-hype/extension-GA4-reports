@@ -4,8 +4,10 @@
 # Compiled files
 # /dist
 
-# Environment variables
+# Environment variables (personal overrides — optional)
 .env
+.env.local
+.local.env
 
 # MacOS folder attributes
 .DS_Store

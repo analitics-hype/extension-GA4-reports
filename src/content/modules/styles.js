@@ -187,6 +187,19 @@ export function getResultsStyles() {
       .ga4-abtest-button.analyze-direct {
           background: linear-gradient(135deg, #ea4335, #d62516);
       }
+
+      .ga4-abtest-button.quick-save {
+          background: linear-gradient(135deg, #059669, #10b981);
+          color: #fff;
+          border: 1px solid #059669;
+          font-weight: 700;
+          min-width: 130px;
+          justify-content: center;
+      }
+
+      .ga4-abtest-button.quick-save.disabled {
+          background: linear-gradient(135deg, #9aa0a6, #80868b);
+      }
       .ga4-abtest-button.topla {
           border-radius: 30px;
             border: 1px solid #DDD;

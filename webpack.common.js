@@ -3,68 +3,72 @@ const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const webpack = require('webpack');
-const dotenv = require('dotenv');
+const { loadExtensionEnv } = require('./webpack.env.js');
 
-// Load .env then .local.env overrides for build-time API/dashboard URLs
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-dotenv.config({ path: path.resolve(__dirname, '.local.env') });
-module.exports = {
-  entry: {
-    popup: './src/popup/popup.js',
-    content: './src/content/content.js',
-    background: './src/background/background.js',
-    listing: './src/popup/listing.js',
-  },
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: '[name].js',
-  },
-  module: {
-    rules: [
-      {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader'],
-      },
-      {
-        test: /\.(png|jpg|jpeg|gif|svg)$/,
-        type: 'asset/resource',
-        generator: {
-          filename: 'images/[name][ext]',
+/** Shared webpack config — pass mode: 'development' | 'production' */
+module.exports = function createCommonConfig(mode) {
+  const env = loadExtensionEnv(mode);
+
+  return {
+    entry: {
+      popup: './src/popup/popup.js',
+      content: './src/content/content.js',
+      background: './src/background/background.js',
+      listing: './src/popup/listing.js',
+    },
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: '[name].js',
+    },
+    module: {
+      rules: [
+        {
+          test: /\.css$/,
+          use: ['style-loader', 'css-loader'],
         },
-      },
-    ],
-  },
-  plugins: [
-    new CleanWebpackPlugin({
-      cleanStaleWebpackAssets: false,
-    }),
-    new CopyPlugin({
-      patterns: [
-        { from: './src/manifest.json' },
-        { 
-          from: './src/images', 
-          to: 'images',
-          noErrorOnMissing: true 
+        {
+          test: /\.(png|jpg|jpeg|gif|svg)$/,
+          type: 'asset/resource',
+          generator: {
+            filename: 'images/[name][ext]',
+          },
         },
       ],
-    }),
-    new HtmlWebpackPlugin({
-      template: './src/popup/popup.html',
-      filename: 'popup.html',
-      chunks: ['popup'],
-    }),
-    new HtmlWebpackPlugin({
-      template: './src/popup/listing.html',
-      filename: 'listing.html',
-      chunks: ['listing'],
-    }),
-    new webpack.DefinePlugin({
-      'process.env.API_URL': JSON.stringify(
-        process.env.API_URL || 'https://backend-ga4-reports-production.up.railway.app/api',
-      ),
-      'process.env.DASHBOARD_URL': JSON.stringify(
-        process.env.DASHBOARD_URL || 'https://www.abtestcalculator.com.tr',
-      ),
-    }),
-  ],
-}; 
+    },
+    plugins: [
+      new CleanWebpackPlugin({
+        cleanStaleWebpackAssets: false,
+      }),
+      new CopyPlugin({
+        patterns: [
+          { from: './src/manifest.json' },
+          {
+            from: './src/images',
+            to: 'images',
+            noErrorOnMissing: true,
+          },
+        ],
+      }),
+      new HtmlWebpackPlugin({
+        template: './src/popup/popup.html',
+        filename: 'popup.html',
+        chunks: ['popup'],
+      }),
+      new HtmlWebpackPlugin({
+        template: './src/popup/listing.html',
+        filename: 'listing.html',
+        chunks: ['listing'],
+      }),
+      new HtmlWebpackPlugin({
+        template: './src/popup/disabled.html',
+        filename: 'disabled.html',
+        chunks: [],
+      }),
+      new webpack.DefinePlugin({
+        'process.env.API_URL': JSON.stringify(env.API_URL),
+        'process.env.DASHBOARD_URL': JSON.stringify(env.DASHBOARD_URL),
+        'process.env.EXTENSION_ENV': JSON.stringify(env.EXTENSION_ENV),
+      }),
+    ],
+  };
+};

@@ -812,10 +812,83 @@ export function injectAnalyzeButton() {
             }
           );
           break;
+        case 'quick-save':
+          if (button.disabled) {
+            showNotification('Kayıt için hem session hem de dönüşüm verisi gerekli', 'error');
+            return;
+          }
+          {
+            let storedDataQuick;
+            try {
+              storedDataQuick = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
+            } catch {
+              showNotification('Veri formatı bozuk. Lütfen temizleyip tekrar deneyin.', 'error');
+              return;
+            }
+            const analysisDataQuick = prepareAnalysisData(storedDataQuick);
+            if (!analysisDataQuick) {
+              showNotification('Analiz verisi hazırlanamadı', 'error');
+              return;
+            }
+            const analysisQuick = await analyzeABTest(analysisDataQuick);
+            if (!analysisQuick) {
+              showNotification('Analiz yapılamadı', 'error');
+              return;
+            }
+            const contentQuick = document.getElementById('ga4-abtest-content');
+            if (!contentQuick) {
+              showNotification('Popup elementi bulunamadı. Lütfen sayfayı yenileyin.', 'error');
+              return;
+            }
+            await displayResults(contentQuick, {
+              reportName: results.data.reportName,
+              dateRange: analysisDataQuick.dateRange || results.data.dateRange,
+              sessionTab: analysisDataQuick.sessionTab.split('-')[1],
+              conversionTab: analysisDataQuick.conversionTab.split('-')[1],
+              analysis: analysisQuick,
+              bussinessImpact: analysisDataQuick.bussinessImpact || '',
+              periodCount: analysisDataQuick.periodCount,
+              autoSave: true,
+            });
+          }
+          break;
+        case 'quick-save-direct':
+          {
+            const directDataQuick = prepareDirectAnalysisData(results.data.tableData);
+            if (!directDataQuick) {
+              showNotification('Direkt analiz verisi hazırlanamadı', 'error');
+              return;
+            }
+            const directAnalysisQuick = await analyzeABTest(directDataQuick);
+            if (!directAnalysisQuick) {
+              showNotification('Direkt analiz yapılamadı', 'error');
+              return;
+            }
+            const directContentQuick = document.getElementById('ga4-abtest-content');
+            if (!directContentQuick) {
+              showNotification('Popup elementi bulunamadı. Lütfen sayfayı yenileyin.', 'error');
+              return;
+            }
+            await displayResults(directContentQuick, {
+              reportName: results.data.reportName,
+              dateRange: results.data.dateRange,
+              analysis: directAnalysisQuick,
+              sessionTab: results.data.tableData.kpis[0],
+              conversionTab: results.data.tableData.kpis[1],
+              bussinessImpact: '',
+              autoSave: true,
+            });
+          }
+          break;
       }
 
       // Popup'ı göster (analiz durumlarında)
-      if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
+      if (
+        button.dataset.mode === 'analyze' ||
+        button.dataset.mode === 'analyze-direct' ||
+        button.dataset.mode === 'quick-save' ||
+        button.dataset.mode === 'quick-save-direct'
+      ) {
         const overlayElement = document.getElementById('ga4-abtest-overlay');
         const resultsElement = document.getElementById('ga4-abtest-results');
         
@@ -835,7 +908,12 @@ export function injectAnalyzeButton() {
       // İşlem sonrası storage durumunu konsola yazdır
       try {
         const storageData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-        if (button.dataset.mode === 'analyze' || button.dataset.mode === 'analyze-direct') {
+        if (
+          button.dataset.mode === 'analyze' ||
+          button.dataset.mode === 'analyze-direct' ||
+          button.dataset.mode === 'quick-save' ||
+          button.dataset.mode === 'quick-save-direct'
+        ) {
           // console.log('AB Test Analiz Et butonuna tıklandı. Storage verisi:', storageData);
         }
       } catch (parseError) {
@@ -890,9 +968,12 @@ function addDataButtons(container, tableData, reportInfo) {
   });
 
   if (currentKPIs.length === 2) {
-      // İki KPI varsa doğrudan analiz butonu
       const analyzeButton = createButton('AB Test Analiz Et', 'analyze-direct');
       container.appendChild(analyzeButton);
+
+      const quickSaveButton = createButton('Analiz & Kaydet', 'quick-save-direct');
+      quickSaveButton.classList.add('quick-save');
+      container.appendChild(quickSaveButton);
   } else if (currentKPIs.length === 1) {
       // Session Al butonu
       const sessionButton = createButton('Session Al', 'session');
@@ -1088,6 +1169,16 @@ function addToplaTemizleButtons(container) {
       analyzeDataButton.disabled = !shouldEnable;
       if (analyzeDataButton.disabled) analyzeDataButton.classList.add('disabled');
       container.appendChild(analyzeDataButton);
+
+      // One-click analyze + save when both KPIs are captured
+      const hasQuickSave = container.querySelector('.ga4-abtest-button.quick-save:not(.quick-save-direct)');
+      if (!hasQuickSave) {
+        const quickSaveButton = createButton('Analiz & Kaydet', 'quick-save');
+        quickSaveButton.classList.add('quick-save');
+        quickSaveButton.disabled = !shouldEnable;
+        if (quickSaveButton.disabled) quickSaveButton.classList.add('disabled');
+        container.appendChild(quickSaveButton);
+      }
     }
   }
 }

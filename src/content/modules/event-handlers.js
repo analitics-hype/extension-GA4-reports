@@ -5,9 +5,9 @@
 import { formatData, recalculateResults } from "./ui-components.js";
 import { exportToCSV } from "./ui-components.js";
 import { showNotification } from "./ui-components.js";
-import { sendReportToBackend } from "./api-service.js";
 import { openAiCommentPanel } from "./ai-comment-panel.js";
 import { initBrandSelector } from "./brand-selector.js";
+import { saveReportFromPopup } from "./report-save.js";
 import html2canvas from 'html2canvas';
 
 /**
@@ -70,11 +70,7 @@ export async function setupResultEventListeners(resultDiv, data, type = 'popup')
 
   // Raporu kaydetme
   popup.querySelector('.save-btn').addEventListener('click', async (event) => {
-    // console.log('Kaydet butonuna tıklandı');
-    
     const saveBtn = event.target.closest('.save-btn');
-    
-    // Hemen loading state'e geç
     const originalContent = saveBtn.innerHTML;
     saveBtn.innerHTML = `
       <div class="copy-loading">
@@ -88,54 +84,38 @@ export async function setupResultEventListeners(resultDiv, data, type = 'popup')
     saveBtn.disabled = true;
     saveBtn.style.pointerEvents = 'none';
     saveBtn.classList.add('copy-loading-active');
-    
-    // console.log('Loading state aktif, kaydetme işlemi başlatılıyor');
-    
-    // DOM güncellenmesini bekle (loading efektinin görünmesi için)
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     try {
-      // Raporu backend'e gönder
       if (type === 'popup') {
-        // Güncel bussinessImpact değerini al
-        const currentBussinessImpact = document.querySelector('#conclusion-input').value || "";
-        
-        // Önce formatData ile eksik alanları doldur
-        const dataWithBussinessImpact = {
-          ...data,
-          bussinessImpact: currentBussinessImpact
-        };
-        
-        const formattedData = await formatData(dataWithBussinessImpact);
-
-        // Attach brand id when prefix unknown or user picked manually
-        if (brandSelector) {
-          const brandId =
-            brandSelector.autoBrandId || brandSelector.getSelectedBrandId?.();
-          if (brandSelector.needsSelection && !brandId) {
-            showNotification('Kaydetmeden önce marka seçin.', 'error');
-            return;
-          }
-          if (brandId) {
-            formattedData.brand = brandId;
-            brandSelector.rememberSelection?.(brandId);
-          }
-        }
-
-        await sendReportToBackend(formattedData);
-        // console.log('Kaydetme işlemi başarıyla tamamlandı');
+        await saveReportFromPopup(data, brandSelector);
       }
     } catch (error) {
       console.error('Kaydetme işlemi hatası:', error);
     } finally {
-      // Loading'i kapat
-      // console.log('Loading state kapatılıyor');
       saveBtn.innerHTML = originalContent;
       saveBtn.disabled = false;
       saveBtn.style.pointerEvents = '';
       saveBtn.classList.remove('copy-loading-active');
     }
   });
+
+  // Quick-save: auto POST after analyze when brand is auto-resolved
+  if (data.autoSave && type === 'popup') {
+    setTimeout(async () => {
+      try {
+        const result = await saveReportFromPopup(data, brandSelector);
+        if (result.success) {
+          showNotification('Rapor tek tıkla kaydedildi', 'success');
+        } else if (result.reason === 'brand') {
+          showNotification('Marka seçip Kaydet\'e tıklayın.', 'info');
+        }
+      } catch (err) {
+        console.error('Quick save error:', err);
+      }
+    }, 400);
+  }
 
   // Görüntüyü kopyalama
   popup.querySelector('.copy-btn').addEventListener('click', async (event) => {

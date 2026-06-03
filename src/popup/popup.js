@@ -26,21 +26,44 @@ async function refreshAuthUI() {
   const authForm = document.getElementById('authForm');
   const logoutBtn = document.getElementById('authLogoutBtn');
   const authError = document.getElementById('authError');
+  const authSection = document.getElementById('authSection');
+  const authAvatar = document.getElementById('authAvatar');
 
   if (loggedIn) {
-    authStatus.textContent = `Giriş: ${username || 'Kullanıcı'}`;
-    authStatus.classList.add('logged-in');
+    const displayName = username || 'Kullanıcı';
+    authStatus.textContent = displayName;
+    authStatus.classList.remove('guest-text');
     authForm.style.display = 'none';
     logoutBtn.style.display = 'block';
+    authSection?.classList.add('logged-in');
+    if (authAvatar) {
+      authAvatar.textContent = displayName.charAt(0).toUpperCase();
+      authAvatar.classList.remove('guest');
+    }
   } else {
     authStatus.textContent = 'Rapor kaydetmek için giriş yapın';
-    authStatus.classList.remove('logged-in');
-    authForm.style.display = 'block';
+    authStatus.classList.add('guest-text');
+    authForm.style.display = 'flex';
     logoutBtn.style.display = 'none';
+    authSection?.classList.remove('logged-in');
+    if (authAvatar) {
+      authAvatar.textContent = '?';
+      authAvatar.classList.add('guest');
+    }
   }
   if (authError) authError.style.display = 'none';
 
   await renderRecentReports(loggedIn);
+}
+
+function setupEnvBadge() {
+  const badge = document.getElementById('envBadge');
+  if (!badge) return;
+  const env = typeof process !== 'undefined' && process.env?.EXTENSION_ENV;
+  if (env === 'development') {
+    badge.hidden = false;
+    badge.title = 'Local development build';
+  }
 }
 
 /** Render last 5 reports with dashboard deep links */
@@ -76,7 +99,7 @@ async function renderRecentReports(loggedIn) {
   reports.forEach((report) => {
     const row = document.createElement('button');
     row.type = 'button';
-    row.className = 'recent-report-row';
+    row.className = 'recent-row';
     row.title = 'Dashboard\'da aç';
 
     const status = report.status || 'Taslak';
@@ -85,14 +108,15 @@ async function renderRecentReports(loggedIn) {
     const detailUrl = report.id ? buildReportDetailUrl(report.id) : buildDashboardUrl();
 
     row.innerHTML = `
-      <span class="recent-report-main">
-        <span class="recent-report-name">${escapeHtml(report.name || 'İsimsiz rapor')}</span>
-        <span class="recent-report-meta">
+      <span class="recent-main">
+        <span class="recent-name">${escapeHtml(report.name || 'İsimsiz rapor')}</span>
+        <span class="recent-meta">
           ${report.brandName ? `<span>${escapeHtml(report.brandName)}</span>` : ''}
           ${dateStr ? `<span>${dateStr}</span>` : ''}
         </span>
       </span>
-      <span class="recent-report-status ${statusClass}">${escapeHtml(status)}</span>
+      <span class="recent-status ${statusClass}">${escapeHtml(status)}</span>
+      <span class="recent-arrow" aria-hidden="true">›</span>
     `;
 
     row.addEventListener('click', () => {
@@ -168,9 +192,9 @@ function setupAuthHandlers() {
 
 // Options sayfası linkini düzenle
 document.addEventListener('DOMContentLoaded', () => {
-  // Sync dashboard URL to storage so GA4 content script opens correct host
   saveDashboardBaseUrl(process.env.DASHBOARD_URL || 'https://www.abtestcalculator.com.tr');
 
+  setupEnvBadge();
   setupAuthHandlers();
   setupDashboardLink();
   refreshAuthUI();
@@ -266,10 +290,10 @@ function showABTestManagement(cookies) {
 function showNoABTestMessage() {
   const abTestSection = document.getElementById('abTestSection');
   const noAbTestSection = document.getElementById('noAbTestSection');
-  
-  if (abTestSection && noAbTestSection) {
-    abTestSection.style.display = 'none';
-    noAbTestSection.style.display = 'block';
+
+  if (abTestSection) abTestSection.style.display = 'none';
+  if (noAbTestSection) {
+    noAbTestSection.style.display = 'none';
   }
 }
 
