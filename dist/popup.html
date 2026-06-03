@@ -70,6 +70,110 @@
             box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
         }
 
+        .reports-button.secondary {
+            background-color: #f3f4f6;
+            color: var(--text-primary);
+            box-shadow: none;
+            border: 1px solid var(--border-color);
+        }
+
+        .reports-button.secondary:hover {
+            background-color: #e5e7eb;
+        }
+
+        .recent-section {
+            background-color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .recent-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .recent-reports-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .recent-report-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: #fff;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .recent-report-row:hover {
+            border-color: #250c4b44;
+            box-shadow: 0 2px 8px rgba(37, 12, 75, 0.08);
+        }
+
+        .recent-report-main {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .recent-report-name {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .recent-report-meta {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+            margin-top: 0.125rem;
+        }
+
+        .recent-report-status {
+            flex-shrink: 0;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+        }
+
+        .recent-report-status.status-live {
+            background: #0abc2a18;
+            color: #0abc2a;
+        }
+
+        .recent-report-status.status-draft {
+            background: #94a3b818;
+            color: #64748b;
+        }
+
+        .recent-report-status.status-stopped {
+            background: #f59e0b18;
+            color: #d97706;
+        }
+
+        .recent-empty {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
         .button-container {
             display: flex;
             flex-direction: column;
@@ -268,4 +372,4 @@
             .ab-btn-secondary:hover {
                 background-color: #374151;
             }
-        }</style><script defer="defer" src="popup.js"></script><link href="popup.css" rel="stylesheet"></head><body><div class="container"><div class="confidence-container" id="authSection"><div class="auth-status" id="authStatus">Giriş yapılmadı</div><div id="authForm" class="auth-form"><input id="authUsername" placeholder="Kullanıcı adı" autocomplete="username"> <input type="password" id="authPassword" placeholder="Şifre" autocomplete="current-password"> <button type="button" class="reports-button" id="authLoginBtn">Giriş Yap</button><div class="auth-error" id="authError" style="display:none;"></div></div><button type="button" class="reports-button" id="authLogoutBtn" style="display:none; background:#6b7280;">Çıkış</button></div><div class="message">AB Test analizi yapmak için GA4'te segment karşılaştırma raporuna gidin ve sayfadaki "AB Test Analiz Et" butonunu kullanın.</div><div class="confidence-container"><label class="confidence-label">Güvenilirlik Oranı (%) <input type="number" id="confidenceLevel" class="confidence-input" value="95" min="1" max="99" step="1"></label></div><div class="button-container"><a href="chrome-extension://listing.html" id="optionsLink" target="_blank" class="reports-button">Tüm Raporları Görüntüle</a></div><div class="ab-test-section" id="abTestSection" style="display: none;"><div class="ab-test-header"><h3 style="margin: 0; color: var(--text-primary); font-size: 1rem; font-weight: 600;">A/B Test Varyasyon Yöneticisi</h3></div><div class="ab-form-group"><label class="ab-form-label">Test Seçin:</label> <select class="ab-form-select" id="testSelect"></select></div><div class="ab-form-group"><label class="ab-form-label">Varyasyon Seçin:</label> <select class="ab-form-select" id="variationSelect"><option value="control">Control</option><option value="var1">Variant 1</option><option value="var2">Variant 2</option><option value="var3">Variant 3</option></select><div class="ab-current-variation" id="currentVariation">A/B test bulunamadı</div></div><div class="ab-tool-actions"><button class="ab-btn ab-btn-primary" id="applyABChanges">Uygula</button> <button class="ab-btn ab-btn-secondary" id="refreshABTool">Yenile</button></div></div><div class="no-ab-test-section" id="noAbTestSection"><div class="message" style="background-color: #f0f8ff; border-color: #2196f3; color: var(--text-secondary);">Bu sitede aktif A/B test bulunamadı. A/B test çalışan bir sayfaya gidin.</div></div></div><script src="popup.js"></script></body></html>
+        }</style><script defer="defer" src="popup.js"></script><link href="popup.css" rel="stylesheet"></head><body><div class="container"><div class="confidence-container" id="authSection"><div class="auth-status" id="authStatus">Giriş yapılmadı</div><div id="authForm" class="auth-form"><input id="authUsername" placeholder="Kullanıcı adı" autocomplete="username"> <input type="password" id="authPassword" placeholder="Şifre" autocomplete="current-password"> <button type="button" class="reports-button" id="authLoginBtn">Giriş Yap</button><div class="auth-error" id="authError" style="display:none;"></div></div><button type="button" class="reports-button" id="authLogoutBtn" style="display:none; background:#6b7280;">Çıkış</button></div><div class="message">AB Test analizi yapmak için GA4'te segment karşılaştırma raporuna gidin ve sayfadaki "AB Test Analiz Et" butonunu kullanın.</div><div class="confidence-container"><label class="confidence-label">Güvenilirlik Oranı (%) <input type="number" id="confidenceLevel" class="confidence-input" value="95" min="1" max="99" step="1"></label></div><div class="recent-section" id="recentReportsSection"><div class="recent-section-title">Son Kayıtlar</div><div class="recent-reports-list" id="recentReportsList"></div><div class="recent-empty" id="recentReportsEmpty" style="display:none;"></div></div><div class="button-container"><button type="button" id="dashboardLink" class="reports-button">Dashboard'da Gör</button> <button type="button" id="listingLink" class="reports-button secondary">Extension Rapor Listesi</button></div><div class="ab-test-section" id="abTestSection" style="display: none;"><div class="ab-test-header"><h3 style="margin: 0; color: var(--text-primary); font-size: 1rem; font-weight: 600;">A/B Test Varyasyon Yöneticisi</h3></div><div class="ab-form-group"><label class="ab-form-label">Test Seçin:</label> <select class="ab-form-select" id="testSelect"></select></div><div class="ab-form-group"><label class="ab-form-label">Varyasyon Seçin:</label> <select class="ab-form-select" id="variationSelect"><option value="control">Control</option><option value="var1">Variant 1</option><option value="var2">Variant 2</option><option value="var3">Variant 3</option></select><div class="ab-current-variation" id="currentVariation">A/B test bulunamadı</div></div><div class="ab-tool-actions"><button class="ab-btn ab-btn-primary" id="applyABChanges">Uygula</button> <button class="ab-btn ab-btn-secondary" id="refreshABTool">Yenile</button></div></div><div class="no-ab-test-section" id="noAbTestSection"><div class="message" style="background-color: #f0f8ff; border-color: #2196f3; color: var(--text-secondary);">Bu sitede aktif A/B test bulunamadı. A/B test çalışan bir sayfaya gidin.</div></div></div><script src="popup.js"></script></body></html>

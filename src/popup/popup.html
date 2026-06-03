@@ -76,6 +76,110 @@
             box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
         }
 
+        .reports-button.secondary {
+            background-color: #f3f4f6;
+            color: var(--text-primary);
+            box-shadow: none;
+            border: 1px solid var(--border-color);
+        }
+
+        .reports-button.secondary:hover {
+            background-color: #e5e7eb;
+        }
+
+        .recent-section {
+            background-color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .recent-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .recent-reports-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .recent-report-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: #fff;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .recent-report-row:hover {
+            border-color: #250c4b44;
+            box-shadow: 0 2px 8px rgba(37, 12, 75, 0.08);
+        }
+
+        .recent-report-main {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .recent-report-name {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .recent-report-meta {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.6875rem;
+            color: var(--text-secondary);
+            margin-top: 0.125rem;
+        }
+
+        .recent-report-status {
+            flex-shrink: 0;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+        }
+
+        .recent-report-status.status-live {
+            background: #0abc2a18;
+            color: #0abc2a;
+        }
+
+        .recent-report-status.status-draft {
+            background: #94a3b818;
+            color: #64748b;
+        }
+
+        .recent-report-status.status-stopped {
+            background: #f59e0b18;
+            color: #d97706;
+        }
+
+        .recent-empty {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
         .button-container {
             display: flex;
             flex-direction: column;
@@ -298,8 +402,16 @@
                 <input type="number" id="confidenceLevel" class="confidence-input" value="95" min="1" max="99" step="1">
             </label>
         </div>
+
+        <div class="recent-section" id="recentReportsSection">
+            <div class="recent-section-title">Son Kayıtlar</div>
+            <div class="recent-reports-list" id="recentReportsList"></div>
+            <div class="recent-empty" id="recentReportsEmpty" style="display:none;"></div>
+        </div>
+
         <div class="button-container">
-            <a href="chrome-extension://listing.html" id="optionsLink" target="_blank" class="reports-button">Tüm Raporları Görüntüle</a>
+            <button type="button" id="dashboardLink" class="reports-button">Dashboard'da Gör</button>
+            <button type="button" id="listingLink" class="reports-button secondary">Extension Rapor Listesi</button>
         </div>
 
         <!-- A/B Test Management Section -->

@@ -3,7 +3,11 @@ const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const webpack = require('webpack');
+const dotenv = require('dotenv');
 
+// Load .env then .local.env overrides for build-time API/dashboard URLs
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.local.env') });
 module.exports = {
   entry: {
     popup: './src/popup/popup.js',
@@ -55,8 +59,12 @@ module.exports = {
       chunks: ['listing'],
     }),
     new webpack.DefinePlugin({
-          'process.env.API_URL': JSON.stringify('https://backend-ga4-reports-production.up.railway.app/api')
-            // 'process.env.API_URL': JSON.stringify('http://localhost:3000/api')
+      'process.env.API_URL': JSON.stringify(
+        process.env.API_URL || 'https://backend-ga4-reports-production.up.railway.app/api',
+      ),
+      'process.env.DASHBOARD_URL': JSON.stringify(
+        process.env.DASHBOARD_URL || 'https://www.abtestcalculator.com.tr',
+      ),
     }),
   ],
 }; 

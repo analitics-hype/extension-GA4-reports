@@ -1,108 +1,63 @@
-// Background script - arka planda çalışan servis
-// console.log('Background script loaded');
+// Background service worker — reports cache, GA4 popup toggle, external links
 
-// Eklenti ilk yüklendiğinde çalışacak kod
-chrome.runtime.onInstalled.addListener(() => {
-  // console.log('Extension installed');
-  
-  // Varsayılan ayarları kaydet
-  chrome.storage.local.set({
-    confidenceLevel: 95,
-    recentReports: []
+const DEFAULT_DASHBOARD_URL = 'https://www.abtestcalculator.com.tr';
+
+function persistRecentReport(report, sendResponse) {
+  chrome.storage.local.get('recentReports', (data) => {
+    const recentReports = data.recentReports || [];
+    const withoutDup = recentReports.filter((r) => r.id !== report.id);
+    withoutDup.unshift({ ...report, savedAt: report.savedAt || new Date().toISOString() });
+    while (withoutDup.length > 10) withoutDup.pop();
+    chrome.storage.local.set({ recentReports: withoutDup }, () => {
+      sendResponse({ success: true });
+    });
   });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({ confidenceLevel: 95, recentReports: [] });
+  // Seed dashboard URL for content scripts (build-time env baked into service worker bundle)
+  const dashboardUrl =
+    typeof process !== 'undefined' && process.env?.DASHBOARD_URL
+      ? process.env.DASHBOARD_URL
+      : DEFAULT_DASHBOARD_URL;
+  chrome.storage.sync.set({ dashboardBaseUrl: dashboardUrl.replace(/\/+$/, '') });
 });
 
-// Content script'ten gelen mesajları dinle
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'saveReport') {
-    // Raporu kaydet
-    chrome.storage.local.get('recentReports', (data) => {
-      const recentReports = data.recentReports || [];
-      
-      // Yeni raporu ekle
-      recentReports.unshift(request.report);
-      
-      // Maksimum 10 rapor sakla
-      if (recentReports.length > 10) {
-        recentReports.pop();
-      }
-      
-      // Güncellenmiş rapor listesini kaydet
-      chrome.storage.local.set({ recentReports }, () => {
-        sendResponse({ success: true });
-      });
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request.action === 'pageLoaded') {
+    const isGA4Page = request.url?.includes('analytics.google.com');
+    chrome.action.setIcon({
+      path: {
+        16: isGA4Page ? 'images/icon16.png' : 'images/icon16_disabled.png',
+        48: isGA4Page ? 'images/icon48.png' : 'images/icon48_disabled.png',
+        128: isGA4Page ? 'images/icon128.png' : 'images/icon128_disabled.png',
+      },
     });
-    
-    // Asenkron yanıt için true döndür
+    chrome.action.setPopup({ popup: isGA4Page ? 'popup.html' : 'disabled.html' });
+    return false;
+  }
+
+  if (request.action === 'saveReport') {
+    persistRecentReport(request.report, sendResponse);
     return true;
   }
-}); 
 
-// Extension yüklendiğinde çalışacak
-chrome.runtime.onInstalled.addListener(() => {
-    // console.log('GA4 AB Test Analyzer yüklendi');
-    
-    // Varsayılan ayarları kaydet
-    chrome.storage.local.set({
-      confidenceLevel: 95,
-      recentReports: []
+  if (request.action === 'openDashboardUrl' && request.url) {
+    const url = String(request.url);
+    if (!/^https?:\/\//i.test(url)) {
+      sendResponse({ success: false, error: 'Invalid URL' });
+      return false;
+    }
+    chrome.tabs.create({ url }, () => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      sendResponse({ success: true });
     });
-});
+    return true;
+  }
 
-// Content script'ten gelen mesajları dinle
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'pageLoaded') {
-        // GA4 sayfasında olup olmadığımızı kontrol et
-        const isGA4Page = request.url.includes('analytics.google.com');
-        
-        // Extension ikonunu güncelle
-        chrome.action.setIcon({
-            path: {
-                "16": isGA4Page ? "images/icon16.png" : "images/icon16_disabled.png",
-                "48": isGA4Page ? "images/icon48.png" : "images/icon48_disabled.png",
-                "128": isGA4Page ? "images/icon128.png" : "images/icon128_disabled.png"
-            }
-        });
-        
-        // Extension'ı aktif/pasif yap
-        chrome.action.setPopup({
-            popup: isGA4Page ? "popup.html" : "disabled.html"
-        });
-    }
-    
-    if (request.action === 'saveReport') {
-        // Raporu kaydet
-        chrome.storage.local.get('recentReports', (data) => {
-            const recentReports = data.recentReports || [];
-            
-            // Yeni raporu ekle
-            recentReports.unshift(request.report);
-            
-            // Maksimum 10 rapor sakla
-            if (recentReports.length > 10) {
-                recentReports.pop();
-            }
-            
-            // Güncellenmiş rapor listesini kaydet
-            chrome.storage.local.set({ recentReports }, () => {
-                sendResponse({ success: true });
-            });
-        });
-        
-        // Asenkron yanıt için true döndür
-        return true;
-    }
+  return false;
 });
-
-// ChatGPT API anahtarını sakla
-chrome.storage.sync.get(['openaiApiKey'], (result) => {
-    if (!result.openaiApiKey) {
-        // İlk kurulumda API anahtarı ayarlanmamışsa
-        chrome.runtime.openOptionsPage();
-    }
-});
-
-// Hata yakalama
-chrome.runtime.onError.addListener((error) => {
-    console.error('Extension error:', error.message);
-}); 

@@ -1,4 +1,3 @@
-// Stil dosyasını import et
 import './popup.css';
 import {
   loginToApi,
@@ -6,9 +5,18 @@ import {
   getStoredUsername,
   isLoggedIn,
 } from '../utils/auth-store.js';
+import {
+  loadRecentReports,
+  buildReportDetailUrl,
+  buildDashboardUrl,
+  saveDashboardBaseUrl,
+} from '../utils/recent-reports.js';
 
-// Global variables
-let currentAbTestCookies = {};
+const STATUS_CLASS = {
+  Canlı: 'status-live',
+  Taslak: 'status-draft',
+  Durduruldu: 'status-stopped',
+};
 
 // Auth UI in popup
 async function refreshAuthUI() {
@@ -31,6 +39,99 @@ async function refreshAuthUI() {
     logoutBtn.style.display = 'none';
   }
   if (authError) authError.style.display = 'none';
+
+  await renderRecentReports(loggedIn);
+}
+
+/** Render last 5 reports with dashboard deep links */
+async function renderRecentReports(loggedIn) {
+  const section = document.getElementById('recentReportsSection');
+  const listEl = document.getElementById('recentReportsList');
+  const emptyEl = document.getElementById('recentReportsEmpty');
+  if (!section || !listEl) return;
+
+  section.style.display = 'block';
+  listEl.innerHTML = '';
+
+  if (!loggedIn) {
+    if (emptyEl) {
+      emptyEl.textContent = 'Son kayıtları görmek için giriş yapın.';
+      emptyEl.style.display = 'block';
+    }
+    return;
+  }
+
+  const reports = await loadRecentReports(true);
+
+  if (!reports.length) {
+    if (emptyEl) {
+      emptyEl.textContent = 'Henüz kayıtlı rapor yok. GA4\'te analiz kaydedin.';
+      emptyEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  reports.forEach((report) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'recent-report-row';
+    row.title = 'Dashboard\'da aç';
+
+    const status = report.status || 'Taslak';
+    const statusClass = STATUS_CLASS[status] || 'status-draft';
+    const dateStr = formatRelativeDate(report.savedAt || report.createdAt);
+    const detailUrl = report.id ? buildReportDetailUrl(report.id) : buildDashboardUrl();
+
+    row.innerHTML = `
+      <span class="recent-report-main">
+        <span class="recent-report-name">${escapeHtml(report.name || 'İsimsiz rapor')}</span>
+        <span class="recent-report-meta">
+          ${report.brandName ? `<span>${escapeHtml(report.brandName)}</span>` : ''}
+          ${dateStr ? `<span>${dateStr}</span>` : ''}
+        </span>
+      </span>
+      <span class="recent-report-status ${statusClass}">${escapeHtml(status)}</span>
+    `;
+
+    row.addEventListener('click', () => {
+      chrome.tabs.create({ url: detailUrl });
+    });
+
+    listEl.appendChild(row);
+  });
+}
+
+function formatRelativeDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Az önce';
+  if (diffMin < 60) return `${diffMin} dk önce`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} sa önce`;
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Global variables
+let currentAbTestCookies = {};
+
+function setupDashboardLink() {
+  document.getElementById('dashboardLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: buildDashboardUrl() });
+  });
 }
 
 function setupAuthHandlers() {
@@ -67,16 +168,17 @@ function setupAuthHandlers() {
 
 // Options sayfası linkini düzenle
 document.addEventListener('DOMContentLoaded', () => {
+  // Sync dashboard URL to storage so GA4 content script opens correct host
+  saveDashboardBaseUrl(process.env.DASHBOARD_URL || 'https://www.abtestcalculator.com.tr');
+
   setupAuthHandlers();
+  setupDashboardLink();
   refreshAuthUI();
-  const optionsLink = document.getElementById('optionsLink');
-  if (optionsLink) {
-      optionsLink.addEventListener('click', (e) => {
-          e.preventDefault();
-          // Chrome extensions API'sini kullanarak options sayfasını aç
-          chrome.runtime.openOptionsPage();
-      });
-  }
+
+  document.getElementById('listingLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: chrome.runtime.getURL('listing.html') });
+  });
 
   // Güvenilirlik oranı ayarlarını yönet
   const confidenceInput = document.getElementById('confidenceLevel');

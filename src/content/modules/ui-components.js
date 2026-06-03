@@ -365,7 +365,7 @@ export async function displayResults(resultDiv, data) {
     resultDiv.innerHTML = templateHtml;
 
     // Event listener'ları ekle
-    setupResultEventListeners(resultDiv, data);
+    await setupResultEventListeners(resultDiv, data);
   } catch (error) {
     console.error('❌ [DEBUG] displayResults hatası:', error);
     if (resultDiv && resultDiv.parentNode) {

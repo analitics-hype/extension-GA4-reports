@@ -5,7 +5,9 @@
 import { formatData, recalculateResults } from "./ui-components.js";
 import { exportToCSV } from "./ui-components.js";
 import { showNotification } from "./ui-components.js";
-import { sendReportToBackend, getAIComment } from "./api-service.js";
+import { sendReportToBackend } from "./api-service.js";
+import { openAiCommentPanel } from "./ai-comment-panel.js";
+import { initBrandSelector } from "./brand-selector.js";
 import html2canvas from 'html2canvas';
 
 /**
@@ -14,8 +16,14 @@ import html2canvas from 'html2canvas';
  * @param {Object} data - Gösterilecek veriler
  * @param {string} type - Gösterim tipi ('popup' veya 'listing')
  */
-export function setupResultEventListeners(resultDiv, data, type = 'popup') {
+export async function setupResultEventListeners(resultDiv, data, type = 'popup') {
   const popup = resultDiv.querySelector('.abtest-popup');
+
+  // Brand picker — popup save flow only
+  let brandSelector = null;
+  if (type === 'popup' && popup) {
+    brandSelector = await initBrandSelector(popup, data.reportName);
+  }
   
   // Veri değişikliklerini dinle ve yeniden hesapla
   const tableInputs = popup.querySelectorAll('.table-input');
@@ -40,60 +48,23 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
     exportToCSV(data);
   });
 
-  // AI ile yorum yapma
-  popup.querySelector('.ai-btn').addEventListener('click', async (event) => {
-    // console.log('AI yorum butonuna tıklandı');
-    
-    const aiBtn = event.target.closest('.ai-btn');
-    
-    // Hemen loading state'e geç
-    const originalContent = aiBtn.innerHTML;
-    aiBtn.innerHTML = `
-      <div class="copy-loading">
-        <div class="loading-dots">
-          <div class="dot"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
-        </div>
-      </div>
-    `;
-    aiBtn.disabled = true;
-    aiBtn.style.pointerEvents = 'none';
-    aiBtn.classList.add('copy-loading-active');
-    
-    // console.log('AI Loading state aktif, AI yorum işlemi başlatılıyor');
-    
-    // DOM güncellenmesini bekle
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
+  // AI ile yorum — open settings panel (template + custom prompt)
+  popup.querySelector('.ai-btn').addEventListener('click', async () => {
+    if (type !== 'popup') return;
+
     try {
-      // Raporu AI'ya gönder
-      if (type === 'popup') {
-        // Önce formatData ile eksik alanları doldur
-        const formattedData = await formatData(data);
-        
-        const aiComment = await getAIComment(formattedData);
-        
-        // AI yorumunu business impact alanına yaz
+      const formattedData = await formatData(data);
+      openAiCommentPanel(popup, formattedData, (aiComment) => {
         const conclusionInput = document.querySelector('#conclusion-input');
         if (conclusionInput && aiComment) {
           conclusionInput.value = aiComment;
-          // Textarea'ya focus ver ve değişikliği tetikle
           conclusionInput.focus();
           conclusionInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
-        
-        // console.log('AI yorum işlemi başarıyla tamamlandı');
-      }
+      });
     } catch (error) {
-      console.error('AI yorum işlemi hatası:', error);
-    } finally {
-      // Loading'i kapat
-      // console.log('AI Loading state kapatılıyor');
-      aiBtn.innerHTML = originalContent;
-      aiBtn.disabled = false;
-      aiBtn.style.pointerEvents = '';
-      aiBtn.classList.remove('copy-loading-active');
+      console.error('AI panel açılırken hata:', error);
+      showNotification('AI paneli açılamadı.', 'error');
     }
   });
 
@@ -136,7 +107,21 @@ export function setupResultEventListeners(resultDiv, data, type = 'popup') {
         };
         
         const formattedData = await formatData(dataWithBussinessImpact);
-        
+
+        // Attach brand id when prefix unknown or user picked manually
+        if (brandSelector) {
+          const brandId =
+            brandSelector.autoBrandId || brandSelector.getSelectedBrandId?.();
+          if (brandSelector.needsSelection && !brandId) {
+            showNotification('Kaydetmeden önce marka seçin.', 'error');
+            return;
+          }
+          if (brandId) {
+            formattedData.brand = brandId;
+            brandSelector.rememberSelection?.(brandId);
+          }
+        }
+
         await sendReportToBackend(formattedData);
         // console.log('Kaydetme işlemi başarıyla tamamlandı');
       }
