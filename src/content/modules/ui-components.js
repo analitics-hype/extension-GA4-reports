@@ -1,7 +1,7 @@
 import { getReportInfo } from './data-extraction.js';
 import { checkKPIDataAndUpdateButton, injectButtonStyles, prepareAnalysisData, prepareDirectAnalysisData, saveKPIData, saveTopaPeriodData, getToplaPeriods, deleteTopaPeriod, clearTopaPeriodConversion, clearToplaPeriods, validateToplaPeriods, prepareToplaAnalysisData, parseDateRange } from './data-processing.js';
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
-import { waitForAllElements } from './dom-helpers.js';
+import { waitForAllElements, queryFirst } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
 import { analyzeABTest, calculateSignificance, calculateTestDuration, calculateBinaryWinnerProbabilities, calculateExtraTransactions } from './statistics.js';
 import { getResultsTemplate } from './templates.js';
@@ -548,13 +548,13 @@ export function injectAnalyzeButton() {
   // Konteyneri ana konteyner'a ekle
   mainContainer.appendChild(buttonsContainer);
   
-  // Ana konteyner'ı header'a ekle - yeni konum: analysis-area sonrası
-  const analysisAreaElement = document.querySelector(".analysis-area");
-  
+  // Mount toolbar into GA4 analysis header (fallback selectors)
+  const analysisAreaElement = queryFirst(document, 'analysisArea');
+
   if (analysisAreaElement) {
     analysisAreaElement.insertBefore(mainContainer, analysisAreaElement.firstChild);
-  }  else {
-    console.warn('⚠️ analysis-area elementi bulunamadı, butonlar eklenemedi');
+  } else {
+    console.warn('[GA4 Extension] analysis-area not found — buttons not injected');
     return;
   }
 
@@ -592,7 +592,7 @@ export function injectAnalyzeButton() {
 
   // Crosstab elementini bekle ve observer'ı başlat
   function setupObserver() {
-    const contentArea = document.querySelector('.crosstab');
+    const contentArea = queryFirst(document, 'crosstab');
       
     if (contentArea) {
       // console.log('Crosstab bulundu, observer başlatılıyor');

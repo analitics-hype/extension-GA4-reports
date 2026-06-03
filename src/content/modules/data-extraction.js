@@ -1,86 +1,15 @@
 /**
- * Veri çıkarma ile ilgili fonksiyonlar
+ * GA4 report DOM extraction — uses fallback selector chains
  */
+import {
+  queryAll,
+  queryFirst,
+  queryText,
+  detectTableVariant,
+} from './dom-helpers.js';
 
 /**
- * Rapor bilgilerini al
- * @returns {Object} Rapor bilgileri
- */
-export function getReportInfo() {
-  try {
-    // Rapor adını al
-    const reportNameElement = document.querySelector('.analysis-header-shared span');
-    if (!reportNameElement) {
-      return {
-        success: false,
-        error: 'Rapor elementleri henüz yüklenmedi. Lütfen sayfanın tamamen yüklenmesini bekleyin.'
-      };
-    }
-    const reportName = reportNameElement.innerHTML.trim();
-
-    // Tarih aralığını al
-    const dateRangeElement = document.querySelector('.primary-date-range-text');
-    if (!dateRangeElement) {
-      return {
-        success: false,
-        error: 'Tarih aralığı elementi henüz yüklenmedi. Lütfen sayfanın tamamen yüklenmesini bekleyin.'
-      };
-    }
-    const dateRange = dateRangeElement.innerText.trim();
-    
-    // console.log('🔍 [DEBUG] getReportInfo - Tarih aralığı alındı:', {
-    //   dateRangeElement: dateRangeElement,
-    //   dateRangeText: dateRange,
-    //   elementHTML: dateRangeElement.innerHTML
-    // });
-
-    // Segmentleri al
-    const segmentElements = document.querySelectorAll('#segment_comparison [data-guidedhelpid="concept-chip-list-container-segment-comparison"] .chip-text-content .chip-title');
-    if (segmentElements.length < 1) {
-      return {
-        success: false,
-        error: 'Lütfen en az bir segment seçin'
-      };
-    }
-    const segments = Array.from(segmentElements).map(el => el.textContent.trim());
-
-    // KPI'ları (values) al
-    const kpiElements = document.querySelectorAll('#value .chip-text-content .chip-title');
-    if (kpiElements.length < 1) {
-      return {
-        success: false,
-        error: 'Lütfen en az bir KPI seçin'
-      };
-    }
-    const kpis = Array.from(kpiElements).map(el => el.textContent.trim());
-
-    // Tablo verilerini al
-    const tableData = getTableData();
-
-    return {
-      success: true,
-      data: {
-        reportName: reportName,
-        dateRange: dateRange,
-        segments: segments,
-        kpis: kpis,
-        tableData: tableData
-      }
-    };
-  } catch (error) {
-    console.error('Rapor bilgileri alma hatası:', error);
-    return {
-      success: false,
-      error: 'Rapor bilgileri alınırken bir hata oluştu. Lütfen sayfayı yenileyin.'
-    };
-  }
-}
-
-/**
- * Parse a locale-formatted number string, handling both dot and comma as thousands separators.
- * EN: "5,459" or "1,234.56"  |  TR: "5.459" or "1.234,56"
- * @param {string} raw - Raw number text from DOM
- * @returns {number}
+ * Parse locale-formatted number strings from GA4 cells
  */
 function parseLocaleNumber(raw) {
   const str = raw.trim();
@@ -88,75 +17,21 @@ function parseLocaleNumber(raw) {
   const lastComma = str.lastIndexOf(',');
 
   if (lastDot > -1 && lastComma > -1) {
-    // Both present: the last separator is the decimal mark
-    if (lastDot > lastComma) {
-      return parseFloat(str.replace(/,/g, ''));
-    }
+    if (lastDot > lastComma) return parseFloat(str.replace(/,/g, ''));
     return parseFloat(str.replace(/\./g, '').replace(',', '.'));
   }
 
   if (lastComma > -1) {
-    // Only comma: if followed by exactly 3 digits at end → thousands separator
     if (/,\d{3}$/.test(str)) return parseFloat(str.replace(/,/g, ''));
     return parseFloat(str.replace(',', '.'));
   }
 
   if (lastDot > -1) {
-    // Only dot: if followed by exactly 3 digits at end → thousands separator
     if (/\.\d{3}$/.test(str)) return parseFloat(str.replace(/\./g, ''));
     return parseFloat(str);
   }
 
   return parseFloat(str) || 0;
-}
-
-/**
- * Tablo verilerini al - supports both old (SVG/cells-wrapper) and new (mat-table) GA4 table structures
- * @returns {Object} Tablo verileri
- */
-export function getTableData() {
-  const isNewTable = document.querySelector('td.adv-table-data-cell .cell-value');
-  if (isNewTable) {
-    return getTableDataNew();
-  }
-  return getTableDataOld();
-}
-
-/** New table: mat-table with .cell-value divs */
-function getTableDataNew() {
-  const kpiHeaders = Array.from(
-    document.querySelectorAll('thead th .header-display-labels xap-text-trigger')
-  ).map(el => el.textContent.trim());
-
-  const segmentNames = Array.from(
-    document.querySelectorAll('tbody tr td.adv-table-option-cell .projected-content-container')
-  ).map(el => el.textContent.trim());
-
-  const allValues = [];
-  document.querySelectorAll('tbody tr').forEach(row => {
-    Array.from(row.querySelectorAll('td.adv-table-data-cell .cell-value')).forEach(el => {
-      allValues.push(parseLocaleNumber(el.textContent));
-    });
-  });
-
-  return buildTableData(kpiHeaders, segmentNames, allValues);
-}
-
-/** Old table: SVG-based .cells-wrapper with text.align-right */
-function getTableDataOld() {
-  const kpiHeaders = Array.from(
-    document.querySelectorAll('.column-headers-wrapper .header-value text')
-  ).map(el => el.textContent.trim());
-
-  const segmentNames = Array.from(
-    document.querySelectorAll('.row-headers-draw-area .row-header-column:first-child .header-value text.align-left:not(.row-index)')
-  ).map(el => el.textContent.trim());
-
-  const allValues = Array.from(
-    document.querySelectorAll('.cells-wrapper .cell text.align-right')
-  ).map(el => parseLocaleNumber(el.textContent));
-
-  return buildTableData(kpiHeaders, segmentNames, allValues);
 }
 
 /** Build segment + metrics structure from extracted arrays */
@@ -172,27 +47,111 @@ function buildTableData(kpiHeaders, segmentNames, allValues) {
   return { kpis: kpiHeaders, segments: tableData };
 }
 
+/** New mat-table GA4 structure */
+function getTableDataNew(root = document) {
+  const kpiHeaders = queryAll(root, 'newTableKpiHeaders').map((el) => el.textContent.trim());
+  const segmentNames = queryAll(root, 'newTableSegmentNames').map((el) => el.textContent.trim());
+
+  const allValues = [];
+  queryAll(root, 'newTableCellValues').forEach((el) => {
+    allValues.push(parseLocaleNumber(el.textContent));
+  });
+
+  return buildTableData(kpiHeaders, segmentNames, allValues);
+}
+
+/** Legacy SVG crosstab GA4 structure */
+function getTableDataOld(root = document) {
+  const kpiHeaders = queryAll(root, 'oldTableKpiHeaders').map((el) => el.textContent.trim());
+  const segmentNames = queryAll(root, 'oldTableSegmentNames').map((el) => el.textContent.trim());
+  const allValues = queryAll(root, 'oldTableCellValues').map((el) =>
+    parseLocaleNumber(el.textContent),
+  );
+
+  return buildTableData(kpiHeaders, segmentNames, allValues);
+}
+
 /**
- * Tab ismini al
- * @returns {string} Tab ismi
+ * Extract crosstab table data — auto-detects old vs new GA4 DOM
  */
-export function getTabName() {
+export function getTableData(root = document) {
+  const variant = detectTableVariant(root);
+  if (variant === 'new') return getTableDataNew(root);
+  if (variant === 'old') return getTableDataOld(root);
+  return { kpis: [], segments: [] };
+}
+
+/**
+ * Read report metadata and table from the GA4 Explore page
+ */
+export function getReportInfo(root = document) {
   try {
-    const activeTab = document.querySelector('.analysis-area-header .cdk-drag .step-tab-active');
-    if (!activeTab) {
-      throw new Error('Aktif tab bulunamadı');
+    const reportName = queryText(root, 'reportName');
+    if (!reportName) {
+      return {
+        success: false,
+        error: 'Rapor elementleri henüz yüklenmedi. Lütfen sayfanın tamamen yüklenmesini bekleyin.',
+      };
     }
 
-    const stepIndex = activeTab.closest(".cdk-drag").getAttribute('data-step-index');
-    const tabName = activeTab.querySelector('.mat-mdc-input-element').getAttribute("aria-label");
-
-    if (!stepIndex || !tabName) {
-      throw new Error('Tab bilgileri eksik');
+    const dateRange = queryText(root, 'dateRange');
+    if (!dateRange) {
+      return {
+        success: false,
+        error: 'Tarih aralığı elementi henüz yüklenmedi. Lütfen sayfanın tamamen yüklenmesini bekleyin.',
+      };
     }
+
+    const segmentElements = queryAll(root, 'segmentChips');
+    if (segmentElements.length < 1) {
+      return { success: false, error: 'Lütfen en az bir segment seçin' };
+    }
+    const segments = segmentElements.map((el) => el.textContent.trim());
+
+    const kpiElements = queryAll(root, 'kpiChips');
+    if (kpiElements.length < 1) {
+      return { success: false, error: 'Lütfen en az bir KPI seçin' };
+    }
+    const kpis = kpiElements.map((el) => el.textContent.trim());
+
+    const tableData = getTableData(root);
+
+    return {
+      success: true,
+      data: {
+        reportName,
+        dateRange,
+        segments,
+        kpis,
+        tableData,
+      },
+    };
+  } catch (error) {
+    console.error('Rapor bilgileri alma hatası:', error);
+    return {
+      success: false,
+      error: 'Rapor bilgileri alınırken bir hata oluştu. Lütfen sayfayı yenileyin.',
+    };
+  }
+}
+
+/**
+ * Active analysis tab label for session/conversion pairing
+ */
+export function getTabName(root = document) {
+  try {
+    const activeTab = queryFirst(root, 'activeTab');
+    if (!activeTab) throw new Error('Aktif tab bulunamadı');
+
+    const stepIndex = activeTab.closest('.cdk-drag')?.getAttribute('data-step-index');
+    const tabInput = queryFirst(activeTab, 'activeTabInput') || queryFirst(root, 'activeTabInput');
+    const tabName = tabInput?.getAttribute('aria-label') || tabInput?.value;
+
+    if (!stepIndex || !tabName) throw new Error('Tab bilgileri eksik');
 
     return `${stepIndex}-${tabName}`;
   } catch (error) {
     console.error('Tab ismi alma hatası:', error);
     throw error;
   }
-} 
+}

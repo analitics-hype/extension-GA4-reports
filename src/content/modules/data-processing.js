@@ -4,6 +4,7 @@
  */
 
 import { getTabName } from './data-extraction.js';
+import { queryText } from './dom-helpers.js';
 import { getResultsStyles } from './styles.js';
 import { createButton, showNotification } from './ui-components.js';
 
@@ -124,7 +125,7 @@ export function saveKPIData(reportInfo, tableData, type) {
  * @returns {Object} Analiz için hazırlanmış veriler
  */
 export function prepareAnalysisData(storedData) {
-  const reportName = document.querySelector('.analysis-header-shared span')?.innerHTML.trim();
+  const reportName = queryText(document, 'reportName');
   if (!reportName) {
     throw new Error('Rapor ismi bulunamadı');
   }

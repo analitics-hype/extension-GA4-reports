@@ -14,7 +14,6 @@ module.exports = function createCommonConfig(mode) {
       popup: './src/popup/popup.js',
       content: './src/content/content.js',
       background: './src/background/background.js',
-      listing: './src/popup/listing.js',
     },
     output: {
       path: path.resolve(__dirname, 'dist'),
@@ -53,11 +52,6 @@ module.exports = function createCommonConfig(mode) {
         template: './src/popup/popup.html',
         filename: 'popup.html',
         chunks: ['popup'],
-      }),
-      new HtmlWebpackPlugin({
-        template: './src/popup/listing.html',
-        filename: 'listing.html',
-        chunks: ['listing'],
       }),
       new HtmlWebpackPlugin({
         template: './src/popup/disabled.html',

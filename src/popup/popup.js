@@ -199,11 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDashboardLink();
   refreshAuthUI();
 
-  document.getElementById('listingLink')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: chrome.runtime.getURL('listing.html') });
-  });
-
   // Güvenilirlik oranı ayarlarını yönet
   const confidenceInput = document.getElementById('confidenceLevel');
   if (confidenceInput) {
