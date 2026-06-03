@@ -1,152 +1,143 @@
-# GA4 AB Test Analysis Chrome Extension
+# HypeCro — GA4 AB Test Chrome Extension
 
-Bu Chrome eklentisi, Google Analytics 4 (GA4) üzerinde AB test sonuçlarını analiz etmek ve görselleştirmek için geliştirilmiştir. Eklenti, GA4 raporlarından veri çeker, istatistiksel analizler yapar ve sonuçları kullanıcı dostu bir arayüzde sunar.
+**Manifest v3** · **v1.8** — GA4 segment karşılaştırma raporlarından A/B test verisi çeker, istatistiksel analiz yapar ve HypeCro backend’e kaydeder.
+
+Monorepo kökü: [../README.md](../README.md) · Geliştirme planı: [../TODO.md](../TODO.md)
+
+---
 
 ## Özellikler
 
-- GA4 raporlarından otomatik veri çekme
-- Session ve conversion verilerini kaydetme
-- İstatistiksel anlamlılık hesaplama
-- Görsel sonuç raporları oluşturma
-- Raporları CSV olarak dışa aktarma
-- Raporları görüntü olarak kopyalama
-- Özelleştirilebilir güven seviyesi ayarları
-- Türkçe dil desteği
+- GA4 rapor sayfalarında otomatik UI enjeksiyonu
+- **Session Al** / **Dönüşüm Al** / **Analiz Et** / **Analiz & Kaydet**
+- Selector fallback zinciri (`ga4-selectors.js`) — DOM değişikliklerine dayanıklılık
+- Popup: JWT giriş, güvenilirlik eşiği, son 5 kayıt, dashboard deep link
+- **Snapshot hatırlatıcısı** — 7+ gün güncellenmeyen canlı testler (API)
+- Marka seçici (prefix tanınmazsa API’den liste)
+- AI yorum paneli: şablon, ek prompt, önizleme
+- GA dışı sayfalarda bilgilendirici popup (`disabled.html` akışı)
+- VWO/GTM sayfalarında A/B varyasyon aracı (cookie tabanlı)
+- `listing.html` kaldırıldı — tüm listeleme React dashboard’da
+
+---
 
 ## Kurulum
 
-### Geliştirici Modu ile Kurulum
+### Gereksinimler
+- Node.js 18+
+- Google Chrome
+- Çalışan backend (`localhost:3000`) ve isteğe bağlı frontend (`3001`)
 
-1. Bu repoyu bilgisayarınıza klonlayın:
+```bash
+cd extension-GA4-reports
+npm install
+npm run dev          # watch build → dist/
+```
 
-   ```
-   git clone https://github.com/kullanici/ga4-abtest-extension.git
-   ```
-2. Chrome tarayıcınızda `chrome://extensions/` adresine gidin
-3. Sağ üst köşedeki "Geliştirici modu" seçeneğini aktif edin
-4. "Paketlenmemiş öğe yükle" butonuna tıklayın
-5. Klonladığınız repo içindeki `webpack-extension/dist` klasörünü seçin
-6. Eklenti tarayıcınıza yüklenecektir
+Chrome: `chrome://extensions` → **Geliştirici modu** → **Paketlenmemiş öğe yükle** → `dist/` klasörü
 
-### Lokal Geliştirme Ortamı Kurulumu
+---
 
-1. Proje klasörüne gidin:
-
-   ```
-   cd extension-GA4-reports
-   ```
-2. Gerekli bağımlılıkları yükleyin:
-
-   ```
-   npm install
-   ```
-
-### Dev / Prod ortamı
+## Ortam ve build
 
 | Komut | Ortam | API | Dashboard |
 |-------|--------|-----|-----------|
-| `npm run dev` | **development** | `http://localhost:3000/api` | `http://localhost:3001` |
-| `npm run build:dev` | **development** (tek seferlik build) | aynı | aynı |
-| `npm run build` / `npm run build:prod` | **production** | Railway API | abtestcalculator.com.tr |
+| `npm run dev` | development (watch) | `http://localhost:3000/api` | `http://localhost:3001` |
+| `npm run build:dev` | development (tek build) | aynı | aynı |
+| `npm run build` | production | Railway API | abtestcalculator.com.tr |
 
-Ortam dosyaları:
+Dosyalar:
 
-- `.env.development` — local URL'ler (`npm run dev`)
-- `.env.production` — canlı URL'ler (`npm run build`)
-- `.env.local` — kişisel override (gitignore'da, isteğe bağlı)
+- `.env.development` — local URL’ler
+- `.env.production` — canlı URL’ler
+- `.env.local` — kişisel override (gitignore, isteğe bağlı)
 
-Build sırasında konsolda hangi URL'lerin kullanıldığı yazdırılır:
+Örnek: [.env.example](./.env.example)
+
+Build log örneği:
 
 ```
 [extension] development → API=http://localhost:3000/api | Dashboard=http://localhost:3001
 ```
 
-3. Geliştirme (watch + localhost):
-
-   ```
-   npm run dev
-   ```
-4. Canlıya paketleme:
-
-   ```
-   npm run build
-   ```
-5. Chrome'da `dist` klasörünü yeniden yükleyin.
+---
 
 ## Kullanım
 
-1. Google Analytics 4 hesabınıza giriş yapın
-2. Analiz etmek istediğiniz raporu açın
-3. Eklenti otomatik olarak aktif hale gelecek ve sayfanın üst kısmında butonlar görünecektir
-4. Session verilerini kaydetmek için "Session Kaydet" butonuna tıklayın
-5. Conversion verilerini kaydetmek için "Conversion Kaydet" butonuna tıklayın
-6. Her iki veri de kaydedildikten sonra "Analiz Et" butonuna tıklayarak sonuçları görüntüleyin
-7. Sonuçları CSV olarak indirmek için "CSV" butonunu kullanın
-8. Sonuçları görüntü olarak kopyalamak için "Kopyala" butonunu kullanın
+1. Extension popup’tan veya dashboard’dan **giriş yapın** (JWT `chrome.storage`)
+2. GA4’te **segment karşılaştırma** raporunu açın
+3. **Session Al** → **Dönüşüm Al** (veya tek tık **Analiz & Kaydet**)
+4. Gerekirse marka seçin → rapor backend’e kaydedilir
+5. Popup’tan **Dashboard’da Gör** veya son kayıtlara tıklayın
 
-## Proje Yapısı
+---
 
-```
-webpack-extension/
-├── dist/                  # Derlenen dosyalar
-├── src/                   # Kaynak kodları
-│   ├── background/        # Arka plan scripti
-│   ├── content/           # İçerik scriptleri
-│   │   ├── modules/       # Modüler kod yapısı
-│   │   │   ├── api-service.js       # API işlemleri
-│   │   │   ├── data-extraction.js   # Veri çıkarma
-│   │   │   ├── data-processing.js   # Veri işleme
-│   │   │   ├── date-utils.js        # Tarih işlemleri
-│   │   │   ├── dom-helpers.js       # DOM yardımcıları
-│   │   │   ├── event-handlers.js    # Olay işleyicileri
-│   │   │   ├── message-handlers.js  # Mesaj işleyicileri
-│   │   │   ├── statistics.js        # İstatistik hesaplamaları
-│   │   │   ├── styles.js            # CSS stilleri
-│   │   │   ├── templates.js         # HTML şablonları
-│   │   │   ├── ui-components.js     # UI bileşenleri
-│   │   │   └── url-watcher.js       # URL izleme
-│   │   └── content.js     # Ana içerik scripti
-│   ├── popup/             # Popup arayüzü
-│   └── manifest.json      # Eklenti manifest dosyası
-├── webpack.common.js      # Ortak webpack yapılandırması
-├── webpack.dev.js         # Geliştirme webpack yapılandırması
-├── webpack.prod.js        # Üretim webpack yapılandırması
-└── package.json           # Proje bağımlılıkları
+## Test
+
+DOM extraction regression testleri (jsdom + fixture HTML):
+
+```bash
+npm run test:dom
 ```
 
-## Geliştirme
+Fixture’lar: `scripts/build-fixtures.mjs` → `test/fixtures/`
 
-### Modüler Yapı
+---
 
-Proje, bakımı ve geliştirmeyi kolaylaştırmak için modüler bir yapıda tasarlanmıştır. Her modül belirli bir sorumluluğa sahiptir:
+## Proje yapısı
 
-- **api-service.js**: Backend API ile iletişim
-- **data-extraction.js**: GA4 raporlarından veri çıkarma
-- **data-processing.js**: Veri işleme ve hazırlama
-- **date-utils.js**: Tarih işlemleri ve formatlamalar
-- **dom-helpers.js**: DOM manipülasyonu yardımcıları
-- **event-handlers.js**: Olay dinleyicileri
-- **message-handlers.js**: Chrome mesaj işleyicileri
-- **statistics.js**: İstatistiksel hesaplamalar
-- **styles.js**: CSS stilleri
-- **templates.js**: HTML şablonları
-- **ui-components.js**: Kullanıcı arayüzü bileşenleri
-- **url-watcher.js**: URL değişikliklerini izleme
+```
+extension-GA4-reports/
+├── dist/                    # Webpack çıktısı (Chrome’a yüklenecek)
+├── src/
+│   ├── background/          # Service worker
+│   ├── content/
+│   │   ├── content.js
+│   │   └── modules/
+│   │       ├── api-service.js
+│   │       ├── data-extraction.js
+│   │       ├── ga4-selectors.js
+│   │       ├── dom-helpers.js
+│   │       ├── report-save.js
+│   │       ├── statistics.js
+│   │       └── ...
+│   ├── popup/               # popup.html, popup.js, popup.css
+│   └── utils/
+│       ├── auth-store.js
+│       ├── recent-reports.js
+│       ├── lifecycle-reminders.js
+│       └── dashboard-config.js
+├── test/
+├── webpack.common.js
+├── webpack.dev.js
+└── webpack.prod.js
+```
 
-### Yeni Özellik Ekleme
+---
 
-Yeni bir özellik eklemek için:
+## Modül sorumlulukları
 
-1. İlgili modülü belirleyin veya yeni bir modül oluşturun
-2. Gerekli fonksiyonları ekleyin
-3. Ana dosyalarda gerekli importları yapın
-4. Webpack ile projeyi derleyin
-5. Chrome'da eklentiyi yeniden yükleyin
+| Modül | Görev |
+|-------|--------|
+| `ga4-selectors.js` | Fallback selector zincirleri |
+| `data-extraction.js` | Tablo / KPI veri çekme |
+| `report-save.js` | Popup & quick-save POST akışı |
+| `api-service.js` | Backend HTTP + auth header |
+| `lifecycle-reminders.js` | Snapshot hatırlatıcı API |
+| `auth-store.js` | Token & kullanıcı adı storage |
+
+---
+
+## Backend entegrasyonu
+
+- `POST /api/reports` — rapor oluşturma/güncelleme (extension payload)
+- `GET /api/reports/lifecycle/reminders` — popup snapshot listesi
+- Auth: `POST /api/auth/login`
+
+Extension giriş yapmadan kayıt **yapılamaz** (popup’tan login gerekli).
+
+---
 
 ## Lisans
 
-Bu proje [MIT Lisansı](LICENSE) altında lisanslanmıştır.
-
-## İletişim
-
-Sorularınız veya önerileriniz için [email@example.com](mailto:email@example.com) adresine e-posta gönderebilirsiniz.
+MIT

@@ -11,6 +11,7 @@ import {
   buildDashboardUrl,
   saveDashboardBaseUrl,
 } from '../utils/recent-reports.js';
+import { fetchSnapshotReminders } from '../utils/lifecycle-reminders.js';
 
 const STATUS_CLASS = {
   Canlı: 'status-live',
@@ -54,6 +55,7 @@ async function refreshAuthUI() {
   if (authError) authError.style.display = 'none';
 
   await renderRecentReports(loggedIn);
+  await renderSnapshotReminders(loggedIn);
 }
 
 function setupEnvBadge() {
@@ -121,6 +123,56 @@ async function renderRecentReports(loggedIn) {
 
     row.addEventListener('click', () => {
       chrome.tabs.create({ url: detailUrl });
+    });
+
+    listEl.appendChild(row);
+  });
+}
+
+/** Show live tests needing GA4 snapshot (7+ days since last capture) */
+async function renderSnapshotReminders(loggedIn) {
+  const section = document.getElementById('snapshotRemindersSection');
+  const listEl = document.getElementById('snapshotRemindersList');
+  const hintEl = document.getElementById('snapshotRemindersHint');
+  if (!section || !listEl) return;
+
+  if (!loggedIn) {
+    section.style.display = 'none';
+    return;
+  }
+
+  const reminders = await fetchSnapshotReminders();
+  if (!reminders.length) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  listEl.innerHTML = '';
+  if (hintEl) {
+    hintEl.textContent = `${reminders.length} canlı test için GA4'ten yeni snapshot alın.`;
+  }
+
+  reminders.slice(0, 5).forEach((item) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'recent-row';
+    row.title = 'Dashboard\'da aç';
+
+    row.innerHTML = `
+      <span class="recent-main">
+        <span class="recent-name">${escapeHtml(item.name || 'İsimsiz')}</span>
+        <span class="recent-meta">
+          ${item.brand ? `<span>${escapeHtml(item.brand)}</span>` : ''}
+          <span>Canlı · snapshot gerekli</span>
+        </span>
+      </span>
+      <span class="recent-arrow" aria-hidden="true">›</span>
+    `;
+
+    row.addEventListener('click', () => {
+      const url = item.id ? buildReportDetailUrl(item.id) : buildDashboardUrl();
+      chrome.tabs.create({ url });
     });
 
     listEl.appendChild(row);
