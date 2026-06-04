@@ -124,6 +124,7 @@ export async function initBrandSelector(popup, reportName) {
           )
           .join('')}
       </select>
+      <button type="button" class="brand-save-btn" id="brandSaveBtn" disabled>Kaydet</button>
       ${renderAddBrandButton('+ Yeni marka', brandMgmtUrl)}
     </div>
     <span class="brand-select-hint">Rapor adından marka otomatik tanınamadı — listede yoksa yeni marka ekleyin</span>

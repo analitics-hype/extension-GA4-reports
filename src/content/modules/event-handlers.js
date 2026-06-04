@@ -8,7 +8,64 @@ import { showNotification } from "./ui-components.js";
 import { openAiCommentPanel } from "./ai-comment-panel.js";
 import { initBrandSelector } from "./brand-selector.js";
 import { saveReportFromPopup } from "./report-save.js";
+import { getStoredToken } from "../../utils/auth-store.js";
 import html2canvas from 'html2canvas';
+
+/** Snapshot table inputs for dirty-state detection */
+function captureTableInputSnapshot(popup) {
+  const inputs = popup?.querySelectorAll('.table-input');
+  if (!inputs?.length) return '';
+  return Array.from(inputs, (input) => input.value).join('|');
+}
+
+/** Show popup header save button after metric edits */
+function showDirtySaveButton(popup) {
+  const btn = popup?.querySelector('.save-btn-dirty');
+  if (btn) btn.style.display = '';
+}
+
+/** Hide popup header save button */
+function hideDirtySaveButton(popup) {
+  const btn = popup?.querySelector('.save-btn-dirty');
+  if (btn) btn.style.display = 'none';
+}
+
+/** Run save with loading state on the clicked button */
+async function runPopupSave(saveBtn, data, brandSelector, popup, onSuccess) {
+  if (!saveBtn) return;
+
+  const originalContent = saveBtn.innerHTML;
+  saveBtn.innerHTML = `
+      <div class="copy-loading">
+        <div class="loading-dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+    `;
+  saveBtn.disabled = true;
+  saveBtn.style.pointerEvents = 'none';
+  saveBtn.classList.add('copy-loading-active');
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  try {
+    const result = await saveReportFromPopup(data, brandSelector);
+    if (result.success) {
+      showNotification('Rapor kaydedildi', 'success');
+      hideDirtySaveButton(popup);
+      onSuccess?.();
+    }
+  } catch (error) {
+    console.error('Kaydetme işlemi hatası:', error);
+  } finally {
+    saveBtn.innerHTML = originalContent;
+    saveBtn.disabled = false;
+    saveBtn.style.pointerEvents = '';
+    saveBtn.classList.remove('copy-loading-active');
+  }
+}
 
 /**
  * Sonuç popup'ı için event listener'ları ekle
@@ -18,112 +75,116 @@ import html2canvas from 'html2canvas';
  */
 export async function setupResultEventListeners(resultDiv, data, type = 'popup') {
   const popup = resultDiv.querySelector('.abtest-popup');
+  if (!popup) return;
+
+  const isLoggedIn = !!(await getStoredToken());
 
   // Brand picker — popup save flow only
   let brandSelector = null;
-  if (type === 'popup' && popup) {
+  if (type === 'popup') {
     brandSelector = await initBrandSelector(popup, data.reportName);
   }
-  
-  // Veri değişikliklerini dinle ve yeniden hesapla
-  const tableInputs = popup.querySelectorAll('.table-input');
-  tableInputs.forEach(input => {
-    input.addEventListener('change', () => {
-      recalculateResults(popup, data).catch(error => {
-        console.error('Sonuçlar yeniden hesaplanırken hata:', error);
-      });
+
+  let tableInputBaseline = '';
+
+  const refreshBaseline = () => {
+    tableInputBaseline = captureTableInputSnapshot(popup);
+  };
+
+  const checkDirtyAndShowSave = () => {
+    if (!isLoggedIn || type !== 'popup') return;
+    if (captureTableInputSnapshot(popup) !== tableInputBaseline) {
+      showDirtySaveButton(popup);
+    }
+  };
+
+  const onTableInputChange = () => {
+    recalculateResults(popup, data).catch((error) => {
+      console.error('Sonuçlar yeniden hesaplanırken hata:', error);
     });
+    checkDirtyAndShowSave();
+  };
+
+  // Listen for metric edits — show save when values change
+  const tableInputs = popup.querySelectorAll('.table-input');
+  tableInputs.forEach((input) => {
+    input.addEventListener('change', onTableInputChange);
+    input.addEventListener('input', onTableInputChange);
   });
 
-  // İlk hesaplamayı yap
-  recalculateResults(popup, data).catch(error => {
-    console.error('İlk hesaplama yapılırken hata:', error);
-  });
+  recalculateResults(popup, data)
+    .then(() => refreshBaseline())
+    .catch((error) => {
+      console.error('İlk hesaplama yapılırken hata:', error);
+    });
 
-  // Tarih dropdown ve input işlevselliği
   setupDateDropdowns();
-  
-  // CSV indirme
-  popup.querySelector('.csv-btn').addEventListener('click', () => {
+
+  popup.querySelector('.csv-btn')?.addEventListener('click', () => {
     exportToCSV(data);
   });
 
-  // AI ile yorum — open settings panel (template + custom prompt)
-  popup.querySelector('.ai-btn').addEventListener('click', async () => {
-    if (type !== 'popup') return;
-
-    try {
-      const formattedData = await formatData(data);
-      openAiCommentPanel(popup, formattedData, (aiComment) => {
-        const conclusionInput = document.querySelector('#conclusion-input');
-        if (conclusionInput && aiComment) {
-          conclusionInput.value = aiComment;
-          conclusionInput.focus();
-          conclusionInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      });
-    } catch (error) {
-      console.error('AI panel açılırken hata:', error);
-      showNotification('AI paneli açılamadı.', 'error');
-    }
-  });
-
-  // Raporu kaydetme
-  popup.querySelector('.save-btn').addEventListener('click', async (event) => {
-    const saveBtn = event.target.closest('.save-btn');
-    const originalContent = saveBtn.innerHTML;
-    saveBtn.innerHTML = `
-      <div class="copy-loading">
-        <div class="loading-dots">
-          <div class="dot"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
-        </div>
-      </div>
-    `;
-    saveBtn.disabled = true;
-    saveBtn.style.pointerEvents = 'none';
-    saveBtn.classList.add('copy-loading-active');
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    try {
-      if (type === 'popup') {
-        await saveReportFromPopup(data, brandSelector);
+  // AI comment — only when logged in (button omitted from template otherwise)
+  const aiBtn = popup.querySelector('.ai-btn');
+  if (aiBtn && type === 'popup') {
+    aiBtn.addEventListener('click', async () => {
+      try {
+        const formattedData = await formatData(data);
+        openAiCommentPanel(popup, formattedData, (aiComment) => {
+          const conclusionInput = document.querySelector('#conclusion-input');
+          if (conclusionInput && aiComment) {
+            conclusionInput.value = aiComment;
+            conclusionInput.focus();
+            conclusionInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      } catch (error) {
+        console.error('AI panel açılırken hata:', error);
+        showNotification('AI paneli açılamadı.', 'error');
       }
-    } catch (error) {
-      console.error('Kaydetme işlemi hatası:', error);
-    } finally {
-      saveBtn.innerHTML = originalContent;
-      saveBtn.disabled = false;
-      saveBtn.style.pointerEvents = '';
-      saveBtn.classList.remove('copy-loading-active');
-    }
-  });
+    });
+  }
 
-  // Quick-save: auto POST after analyze when brand is auto-resolved
-  if (data.autoSave && type === 'popup') {
+  // Dirty-state save in popup header
+  const dirtySaveBtn = popup.querySelector('.save-btn-dirty');
+  if (dirtySaveBtn && isLoggedIn && type === 'popup') {
+    dirtySaveBtn.addEventListener('click', (event) => {
+      const saveBtn = event.target.closest('.save-btn-dirty');
+      runPopupSave(saveBtn, data, brandSelector, popup, refreshBaseline);
+    });
+  }
+
+  // Brand row save when prefix could not be resolved
+  const brandSaveBtn = popup.querySelector('#brandSaveBtn');
+  const brandSelect = popup.querySelector('#brandSelect');
+  if (brandSaveBtn && brandSelect && type === 'popup') {
+    const syncBrandSaveDisabled = () => {
+      brandSaveBtn.disabled = !brandSelect.value;
+    };
+    brandSelect.addEventListener('change', syncBrandSaveDisabled);
+    syncBrandSaveDisabled();
+    brandSaveBtn.addEventListener('click', () => {
+      runPopupSave(brandSaveBtn, data, brandSelector, popup, refreshBaseline);
+    });
+  }
+
+  // Auto-save after Analiz Et when brand was auto-detected
+  if (data.saveAfterAnalyze && type === 'popup' && isLoggedIn && brandSelector?.autoBrandId) {
     setTimeout(async () => {
       try {
         const result = await saveReportFromPopup(data, brandSelector);
         if (result.success) {
-          showNotification('Rapor tek tıkla kaydedildi', 'success');
-        } else if (result.reason === 'brand') {
-          showNotification('Marka seçip Kaydet\'e tıklayın.', 'info');
+          showNotification('Rapor kaydedildi', 'success');
+          refreshBaseline();
         }
       } catch (err) {
-        console.error('Quick save error:', err);
+        console.error('Analiz sonrası kayıt hatası:', err);
       }
     }, 400);
   }
 
-  // Görüntüyü kopyalama
-  popup.querySelector('.copy-btn').addEventListener('click', async (event) => {
-    // console.log('Kopyala butonuna tıklandı - Loading başlatılıyor');
-    
+  popup.querySelector('.copy-btn')?.addEventListener('click', async (event) => {
     const copyBtn = event.target.closest('.copy-btn');
-    
-    // Hemen loading state'e geç
     const originalContent = copyBtn.innerHTML;
     copyBtn.innerHTML = `
       <div class="copy-loading">
@@ -137,20 +198,14 @@ export async function setupResultEventListeners(resultDiv, data, type = 'popup')
     copyBtn.disabled = true;
     copyBtn.style.pointerEvents = 'none';
     copyBtn.classList.add('copy-loading-active');
-    
-    // console.log('Loading state aktif, kopyalama işlemi başlatılıyor');
-    
-    // DOM güncellenmesini bekle
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     try {
       await copyResultsAsImage(popup, data, type);
-      // console.log('Kopyalama işlemi tamamlandı');
     } catch (error) {
       console.error('Kopyalama işlemi hatası:', error);
     } finally {
-      // Loading'i kapat
-      // console.log('Loading state kapatılıyor');
       copyBtn.innerHTML = originalContent;
       copyBtn.disabled = false;
       copyBtn.style.pointerEvents = '';
@@ -158,13 +213,11 @@ export async function setupResultEventListeners(resultDiv, data, type = 'popup')
     }
   });
 
-  // Kapatma butonu
-  popup.querySelector('.close-btn').addEventListener('click', () => {
+  popup.querySelector('.close-btn')?.addEventListener('click', () => {
     document.getElementById('ga4-abtest-overlay').style.display = 'none';
     document.getElementById('ga4-abtest-results').style.display = 'none';
   });
-  
-  // Listing tipi için metrik tıklama işlevselliğini ekle
+
   if (type === 'listing') {
     setupMetricClickListeners(resultDiv, data);
   }
@@ -174,9 +227,9 @@ export async function setupResultEventListeners(resultDiv, data, type = 'popup')
  * Tarih dropdown'ları için event listener'ları ekle
  */
 function setupDateDropdowns() {
-  document.querySelectorAll('.end-date-select').forEach(dropdown => {
+  document.querySelectorAll('.end-date-select').forEach((dropdown) => {
     const input = dropdown.nextElementSibling;
-    
+
     dropdown.addEventListener('change', (e) => {
       if (e.target.value === 'edit') {
         dropdown.style.display = 'none';
@@ -214,67 +267,63 @@ async function copyResultsAsImage(popup, data, type = 'extension') {
         data = await formatData(JSON.parse(lastAnalysisData));
       }
 
-      // UI elementlerini screenshot için hazırla
       document.querySelector('#conclusion-input-copy').innerHTML = document.querySelector('#conclusion-input').value;
       document.querySelector('#conclusion-input-copy').style.display = 'block';
       document.querySelector('#conclusion-input').style.display = 'none';
       document.querySelector('.action-buttons').style.display = 'none';
       document.querySelector('.select-arrow').style.display = 'none';
-      
-      // Loading spinner'ları da gizle (screenshot için)
-      const loadingElements = document.querySelectorAll('.copy-loading, .loading-spinner');
-      loadingElements.forEach(el => el.style.display = 'none');
-      
-      // Monthly ve Yearly sütunlarını gizle (7. ve 8. sütunlar)
-      const popupElement = document.querySelector('.abtest-popup');
-      const monthlyHeaders = popupElement.querySelectorAll('th:nth-child(7)'); // 7. sütun: Monthly
-      const yearlyHeaders = popupElement.querySelectorAll('th:nth-child(8)'); // 8. sütun: Yearly
-      const monthlyCells = popupElement.querySelectorAll('td:nth-child(7)'); // 7. sütun: Monthly
-      const yearlyCells = popupElement.querySelectorAll('td:nth-child(8)'); // 8. sütun: Yearly
-      
-      // Gizle
-      monthlyHeaders.forEach(header => header.style.display = 'none');
-      yearlyHeaders.forEach(header => header.style.display = 'none');
-      monthlyCells.forEach(cell => cell.style.display = 'none');
-      yearlyCells.forEach(cell => cell.style.display = 'none');
 
-      // html2canvas is now available globally
+      const loadingElements = document.querySelectorAll('.copy-loading, .loading-spinner');
+      loadingElements.forEach((el) => (el.style.display = 'none'));
+
+      const popupElement = document.querySelector('.abtest-popup');
+      const monthlyHeaders = popupElement.querySelectorAll('th:nth-child(7)');
+      const yearlyHeaders = popupElement.querySelectorAll('th:nth-child(8)');
+      const monthlyCells = popupElement.querySelectorAll('td:nth-child(7)');
+      const yearlyCells = popupElement.querySelectorAll('td:nth-child(8)');
+
+      monthlyHeaders.forEach((header) => (header.style.display = 'none'));
+      yearlyHeaders.forEach((header) => (header.style.display = 'none'));
+      monthlyCells.forEach((cell) => (cell.style.display = 'none'));
+      yearlyCells.forEach((cell) => (cell.style.display = 'none'));
+
       html2canvas(popupElement, {
         backgroundColor: '#ffffff',
-        scale: 2, // Better quality for retina displays
+        scale: 2,
         logging: false,
-        useCORS: true
-      }).then(canvas => {
-        canvas.toBlob(blob => {
-          navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-          ]).then(() => {
-            showNotification('Görüntü panoya kopyalandı', 'success');
-            resolve();
-          }).catch(err => {
-            showNotification('Kopyalama başarısız: ' + err.message, 'error');
-            reject(err);
+        useCORS: true,
+      })
+        .then((canvas) => {
+          canvas.toBlob((blob) => {
+            navigator.clipboard
+              .write([new ClipboardItem({ 'image/png': blob })])
+              .then(() => {
+                showNotification('Görüntü panoya kopyalandı', 'success');
+                resolve();
+              })
+              .catch((err) => {
+                showNotification('Kopyalama başarısız: ' + err.message, 'error');
+                reject(err);
+              });
           });
+        })
+        .catch((err) => {
+          showNotification('Görüntü oluşturulurken hata oluştu: ' + err.message, 'error');
+          reject(err);
+        })
+        .finally(() => {
+          document.querySelector('.action-buttons').style.display = 'flex';
+          document.querySelector('.select-arrow').style.display = 'flex';
+          document.querySelector('#conclusion-input').style.display = 'block';
+          document.querySelector('#conclusion-input-copy').style.display = 'none';
+
+          loadingElements.forEach((el) => (el.style.display = ''));
+
+          monthlyHeaders.forEach((header) => (header.style.display = ''));
+          yearlyHeaders.forEach((header) => (header.style.display = ''));
+          monthlyCells.forEach((cell) => (cell.style.display = ''));
+          yearlyCells.forEach((cell) => (cell.style.display = ''));
         });
-      }).catch(err => {
-        showNotification('Görüntü oluşturulurken hata oluştu: ' + err.message, 'error');
-        reject(err);
-      }).finally(() => {
-        // UI elementlerini eski haline getir
-        document.querySelector('.action-buttons').style.display = 'flex';
-        document.querySelector('.select-arrow').style.display = 'flex';
-        document.querySelector('#conclusion-input').style.display = 'block';
-        document.querySelector('#conclusion-input-copy').style.display = 'none';
-        
-        // Loading spinner'ları tekrar göster
-        loadingElements.forEach(el => el.style.display = '');
-        
-        // Monthly ve Yearly sütunlarını tekrar göster
-        monthlyHeaders.forEach(header => header.style.display = '');
-        yearlyHeaders.forEach(header => header.style.display = '');
-        monthlyCells.forEach(cell => cell.style.display = '');
-        yearlyCells.forEach(cell => cell.style.display = '');
-      });
     } catch (error) {
       reject(error);
     }
@@ -287,35 +336,27 @@ async function copyResultsAsImage(popup, data, type = 'extension') {
  * @param {Object} data - Gösterilecek veriler
  */
 function setupMetricClickListeners(resultDiv, data) {
-  // Metrik elementlerini seç
   const metricElements = resultDiv.querySelectorAll('.listing-metric-name');
-  
-  // Tıklama olaylarını ekle
+
   metricElements.forEach((metricEl, index) => {
     metricEl.addEventListener('click', () => {
-      // Aktif sınıfını güncelle
-      metricElements.forEach(el => {
+      metricElements.forEach((el) => {
         el.classList.remove('active');
       });
       metricEl.classList.add('active');
-      
-      // Orijinal veri varsa ve birden fazla analiz içeriyorsa
+
       if (data && data.analysis && Array.isArray(data.analysis) && data.analysis.length > index) {
-        // Seçilen analiz verilerini hazırla
         const selectedData = {
           ...data,
           analysis: data.analysis[index],
           resultStatus: data.analysis[index].resultStatus,
           sessionTab: data.analysis[index].control.tabName,
-          conversionTab: data.analysis[index].name
+          conversionTab: data.analysis[index].name,
         };
-        
-        // Tabloyu güncelle
+
         updateTableWithSelectedData(resultDiv, selectedData);
       } else if (data && !Array.isArray(data.analysis)) {
-        // Tek bir analiz varsa, indeksi kontrol et
         if (index === 0) {
-          // Zaten gösterilen veri, bir şey yapma
           return;
         }
       }
@@ -330,158 +371,141 @@ function setupMetricClickListeners(resultDiv, data) {
  */
 function updateTableWithSelectedData(resultDiv, selectedData) {
   const popup = resultDiv.querySelector('.abtest-popup');
-  
-  // Tablo başlıklarını güncelle
+
   const sessionTabInput = popup.querySelector('.header-input:nth-of-type(1)');
   const conversionTabInput = popup.querySelector('.header-input:nth-of-type(2)');
-  
+
   if (sessionTabInput) {
     sessionTabInput.value = selectedData.sessionTab || 'Users';
   }
-  
+
   if (conversionTabInput) {
     conversionTabInput.value = selectedData.conversionTab || 'Purchase';
   }
-  
-  // Kontrol değerlerini güncelle
+
   const controlSessions = popup.querySelector('[data-type="control-users"]');
   const controlConversions = popup.querySelector('[data-type="control-conversions"]');
-  
+
   if (controlSessions && selectedData.analysis.control) {
     controlSessions.value = selectedData.analysis.control.sessions;
   }
-  
+
   if (controlConversions && selectedData.analysis.control) {
     controlConversions.value = selectedData.analysis.control.conversions;
   }
-  
-  // Eski formatla uyumluluk için tek varyant kontrolü
+
   if (selectedData.analysis.variant) {
     const variantSessions = popup.querySelector('[data-type="variant-users"]');
     const variantConversions = popup.querySelector('[data-type="variant-conversions"]');
-    
+
     if (variantSessions) {
       variantSessions.value = selectedData.analysis.variant.sessions;
     }
-    
+
     if (variantConversions) {
       variantConversions.value = selectedData.analysis.variant.conversions;
     }
-    
-    // CR değerlerini güncelle
+
     const controlCR = popup.querySelector('.control-row td:nth-child(4)');
     const variantCR = popup.querySelector('.variant-row td:nth-child(4)');
-    
+
     if (controlCR) {
       controlCR.textContent = `${selectedData.analysis.control.cr.toFixed(2)}%`;
     }
-    
+
     if (variantCR) {
       variantCR.textContent = `${selectedData.analysis.variant.cr.toFixed(2)}%`;
     }
-    
-    // Uplift değerini güncelle
+
     const upliftCell = popup.querySelector('.variant-row td:nth-child(5)');
     if (upliftCell) {
       upliftCell.textContent = `${selectedData.analysis.improvement.toFixed(2)}%`;
-      upliftCell.className = selectedData.analysis.improvement >= 0 ? 'metric-change positive' : 'metric-change negative';
+      upliftCell.className =
+        selectedData.analysis.improvement >= 0 ? 'metric-change positive' : 'metric-change negative';
     }
-    
-    // Significance değerlerini güncelle
+
     const controlSignificance = popup.querySelector('.control-row td:last-child');
     const variantSignificance = popup.querySelector('.variant-row td:last-child');
-    
+
     if (controlSignificance) {
-      controlSignificance.textContent = '-'; // Control significance gösterilmiyor
+      controlSignificance.textContent = '-';
     }
-    
+
     if (variantSignificance && selectedData.analysis.stats) {
       variantSignificance.textContent = `${selectedData.analysis.stats.variantProbability}%`;
     }
-  } 
-  // Yeni format (çoklu varyant)
-  else if (selectedData.analysis.variants && Array.isArray(selectedData.analysis.variants)) {
-    // Varyantları güncelle
+  } else if (selectedData.analysis.variants && Array.isArray(selectedData.analysis.variants)) {
     selectedData.analysis.variants.forEach((variant, index) => {
       const variantRow = popup.querySelector(`[data-variant-index="${index}"]`);
       if (!variantRow) return;
-      
-      // Input değerlerini güncelle
+
       const variantUsers = variantRow.querySelector(`[data-type="variant-users-${index}"]`);
       const variantConversions = variantRow.querySelector(`[data-type="variant-conversions-${index}"]`);
-      
+
       if (variantUsers) {
         variantUsers.value = variant.sessions;
       }
-      
+
       if (variantConversions) {
         variantConversions.value = variant.conversions;
       }
-      
-      // CR ve Uplift değerlerini güncelle
+
       const variantCR = variantRow.querySelector('td:nth-child(4)');
       const upliftCell = variantRow.querySelector('td:nth-child(5)');
       const variantSignificance = variantRow.querySelector('td:last-child');
-      
+
       if (variantCR) {
         variantCR.textContent = `${variant.cr.toFixed(2)}%`;
       }
-      
+
       if (upliftCell) {
         upliftCell.textContent = `${variant.improvement.toFixed(2)}%`;
         upliftCell.className = variant.improvement >= 0 ? 'metric-change positive' : 'metric-change negative';
       }
-      
+
       if (variantSignificance && variant.stats) {
         variantSignificance.textContent = `${variant.stats.variantProbability}%`;
       }
     });
-    
-    // Kontrol CR ve significance değerlerini güncelle
+
     const controlCR = popup.querySelector('.control-row td:nth-child(4)');
     const controlSignificance = popup.querySelector('.control-row td:last-child');
-    
+
     if (controlCR) {
       controlCR.textContent = `${selectedData.analysis.control.cr.toFixed(2)}%`;
     }
-    
+
     if (controlSignificance) {
-      controlSignificance.textContent = '-'; // Control significance gösterilmiyor
+      controlSignificance.textContent = '-';
     }
   }
-  
-  // Toplam kullanıcı sayısını güncelle
+
   const usersText = popup.querySelector('.users-text');
   if (usersText) {
     let totalUsers = selectedData.analysis.control.sessions;
-    
+
     if (selectedData.analysis.variant) {
       totalUsers += selectedData.analysis.variant.sessions;
     } else if (selectedData.analysis.variants) {
-      selectedData.analysis.variants.forEach(variant => {
+      selectedData.analysis.variants.forEach((variant) => {
         totalUsers += variant.sessions;
       });
     }
-    
+
     usersText.textContent = totalUsers.toLocaleString();
   }
-  
-  // Sonuç durumunu güncelle
+
   const resultElement = popup.querySelector('.conclusion-result');
   const resultDescElement = popup.querySelector('.conclusion-result-desc');
-  
+
   if (resultElement && resultDescElement) {
-    // Eski sınıfları kaldır
     resultElement.classList.remove('kazandı', 'kaybetti', 'etkisiz');
-    // Yeni sınıfı ekle
     const resultStatus = selectedData.resultStatus ? selectedData.resultStatus.toLowerCase() : 'etkisiz';
     resultElement.classList.add(resultStatus);
-    // Sonuç metnini güncelle
     resultDescElement.textContent = selectedData.resultStatus || 'Etkisiz';
   }
-  
-  // Yeniden hesaplama için veriyi güncelle
-  recalculateResults(popup, selectedData).catch(error => {
+
+  recalculateResults(popup, selectedData).catch((error) => {
     console.error('Sonuçlar yeniden hesaplanırken hata:', error);
   });
-} 
+}

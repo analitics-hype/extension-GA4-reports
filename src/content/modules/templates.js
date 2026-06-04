@@ -29,9 +29,11 @@ import { calculateBinaryWinnerProbabilities, calculateExtraTransactions } from '
  * @param {Object} data - Gösterilecek veriler
  * @param {string} type - Gösterim tipi ('popup' veya 'listing')
  * @param {Array} metrics - Metrik isimleri listesi (listing tipi için)
+ * @param {Object} options - UI flags: showAiButton
  * @returns {Promise<string>} HTML içeriği
  */
-export async function getResultsTemplate(data, type='popup', metrics) {
+export async function getResultsTemplate(data, type = 'popup', metrics, options = {}) {
+  const { showAiButton = false } = options;
 
     // {
     //     "_id": "67d184f595f2981e2e55e94d",
@@ -206,6 +208,7 @@ export async function getResultsTemplate(data, type='popup', metrics) {
     </defs>
   </svg></span> CSV Formatı
         </div>
+        ${showAiButton ? `
         <div class="action-btn ai-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="19" viewBox="0 0 18 19" fill="none">
                 <g opacity="0.8" clip-path="url(#clip0_1_19)">
@@ -222,7 +225,8 @@ export async function getResultsTemplate(data, type='popup', metrics) {
                 </defs>
               </svg> Ai ile Yorumla
         </div>
-        <div class="action-btn save-btn">
+        ` : ''}
+        <div class="action-btn save-btn save-btn-dirty" style="display: none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="19" viewBox="0 0 16 19" fill="none">
                 <path d="M13.9177 18.4974C13.6487 18.4966 13.3825 18.4409 13.1344 18.3334C12.8864 18.226 12.6615 18.0689 12.4727 17.8712L7.99999 13.2864L3.52732 17.8742C3.24007 18.1747 2.87168 18.379 2.47018 18.4605C2.06868 18.542 1.65269 18.4968 1.27644 18.3309C0.896454 18.1733 0.571389 17.9012 0.343692 17.5502C0.115994 17.1992 -0.00375214 16.7855 8.96253e-05 16.3632V4.24946C8.96253e-05 3.25504 0.383201 2.30135 1.06514 1.59819C1.74709 0.895031 2.672 0.5 3.63641 0.5L12.3636 0.5C12.8411 0.5 13.314 0.596983 13.7551 0.78541C14.1963 0.973838 14.5972 1.25002 14.9348 1.59819C15.2725 1.94636 15.5404 2.3597 15.7231 2.8146C15.9058 3.26951 15.9999 3.75707 15.9999 4.24946V16.3632C16.004 16.7851 15.8847 17.1986 15.6575 17.5496C15.4303 17.9006 15.1059 18.1728 14.7265 18.3309C14.4703 18.4414 14.1954 18.498 13.9177 18.4974ZM3.63641 1.99978C3.05776 1.99978 2.50282 2.2368 2.09365 2.6587C1.68448 3.08059 1.45462 3.65281 1.45462 4.24946V16.3632C1.45436 16.4882 1.49001 16.6104 1.55709 16.7145C1.62417 16.8185 1.71965 16.8998 1.83148 16.9479C1.94331 16.9961 2.06647 17.009 2.1854 16.985C2.30434 16.961 2.4137 16.9012 2.4997 16.8131L7.49091 11.6981C7.62717 11.5585 7.8115 11.4801 8.00363 11.4801C8.19576 11.4801 8.38009 11.5585 8.51635 11.6981L13.5017 16.8116C13.5877 16.8997 13.6971 16.9595 13.816 16.9835C13.935 17.0075 14.0581 16.9946 14.17 16.9464C14.2818 16.8983 14.3773 16.817 14.4444 16.713C14.5114 16.6089 14.5471 16.4867 14.5468 16.3617V4.24946C14.5468 3.65281 14.317 3.08059 13.9078 2.6587C13.4986 2.2368 12.9437 1.99978 12.365 1.99978H3.63641Z" fill="#0E2C2D"/>
               </svg> Kaydet

@@ -3,6 +3,8 @@ import { checkKPIDataAndUpdateButton, injectButtonStyles, prepareAnalysisData, p
 import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
 import { waitForAllElements, queryFirst } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
+import { getStoredToken } from '../../utils/auth-store.js';
+import { gateAnalysisAuth } from './auth-login-prompt.js';
 import { analyzeABTest, calculateSignificance, calculateTestDuration, calculateBinaryWinnerProbabilities, calculateExtraTransactions } from './statistics.js';
 import { getResultsTemplate } from './templates.js';
 /**
@@ -329,6 +331,42 @@ export function showNotification(message, type = 'info', duration = 3000) {
  * @param {Object} data - Gösterilecek veriler
  * @returns {Promise<void>}
  */
+/** Show results overlay after analysis */
+function showResultsOverlay() {
+  const overlayElement = document.getElementById('ga4-abtest-overlay');
+  const resultsElement = document.getElementById('ga4-abtest-results');
+
+  if (!overlayElement || !resultsElement) {
+    showNotification('Popup gösterilemiyor. Lütfen sayfayı yenileyin.', 'error');
+    return false;
+  }
+
+  overlayElement.style.display = 'block';
+  resultsElement.style.display = 'flex';
+  return true;
+}
+
+/**
+ * Auth gate then render analysis popup (returns false if user cancelled)
+ * @param {HTMLElement} contentElement
+ * @param {Object} payload - Analysis result data
+ */
+async function presentAnalysisResults(contentElement, payload) {
+  const gate = await gateAnalysisAuth();
+  if (gate.cancelled) return false;
+
+  if (!gate.allowSave) {
+    showNotification('Giriş yapılmadı — rapor dashboard\'a kaydedilmeyecek.', 'info');
+  } else if (gate.freshLogin) {
+    showNotification('Giriş başarılı', 'success');
+  }
+
+  const finalPayload = gate.allowSave ? { ...payload, saveAfterAnalyze: true } : payload;
+  await displayResults(contentElement, finalPayload);
+  showResultsOverlay();
+  return true;
+}
+
 export async function displayResults(resultDiv, data) {
   try {
     // Element kontrolü
@@ -350,7 +388,10 @@ export async function displayResults(resultDiv, data) {
     }
 
     // HTML şablonunu ekle (async template function)
-    const templateHtml = await getResultsTemplate(templateData);
+    const isLoggedIn = !!(await getStoredToken());
+    const templateHtml = await getResultsTemplate(templateData, 'popup', undefined, {
+      showAiButton: isLoggedIn,
+    });
     if (!templateHtml) {
       console.error('❌ [DEBUG] getResultsTemplate null döndü');
       return;
@@ -760,21 +801,16 @@ export function injectAnalyzeButton() {
             return;
           }
 
-          await displayResults(
-            contentElement,
-            {
-              reportName: results.data.reportName,
-              // Konsolide edilmiş veri varsa onu kullan, yoksa mevcut tarih aralığını kullan
-              dateRange: analysisData.dateRange || results.data.dateRange,
-              sessionTab: analysisData.sessionTab.split('-')[1],
-              conversionTab: analysisData.conversionTab.split('-')[1],
-              analysis,
-              bussinessImpact: analysisData.bussinessImpact || "",
-              // Konsolide bilgilerini de aktar
-              periodCount: analysisData.periodCount,
-              reportName: analysisData.reportName || results.data.reportName
-            }
-          );
+          await presentAnalysisResults(contentElement, {
+            reportName: results.data.reportName,
+            dateRange: analysisData.dateRange || results.data.dateRange,
+            sessionTab: analysisData.sessionTab.split('-')[1],
+            conversionTab: analysisData.conversionTab.split('-')[1],
+            analysis,
+            bussinessImpact: analysisData.bussinessImpact || '',
+            periodCount: analysisData.periodCount,
+            reportName: analysisData.reportName || results.data.reportName,
+          });
           break;
         case 'analyze-direct':
           const directAnalysisData = prepareDirectAnalysisData(results.data.tableData);
@@ -800,109 +836,15 @@ export function injectAnalyzeButton() {
             return;
           }
 
-          await displayResults(
-            directContentElement,
-            {
-              reportName: results.data.reportName,
-              dateRange: results.data.dateRange,
-              analysis: directAnalysis,
-              sessionTab: results.data.tableData.kpis[0],
-              conversionTab: results.data.tableData.kpis[1],
-              bussinessImpact:""
-            }
-          );
-          break;
-        case 'quick-save':
-          if (button.disabled) {
-            showNotification('Kayıt için hem session hem de dönüşüm verisi gerekli', 'error');
-            return;
-          }
-          {
-            let storedDataQuick;
-            try {
-              storedDataQuick = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
-            } catch {
-              showNotification('Veri formatı bozuk. Lütfen temizleyip tekrar deneyin.', 'error');
-              return;
-            }
-            const analysisDataQuick = prepareAnalysisData(storedDataQuick);
-            if (!analysisDataQuick) {
-              showNotification('Analiz verisi hazırlanamadı', 'error');
-              return;
-            }
-            const analysisQuick = await analyzeABTest(analysisDataQuick);
-            if (!analysisQuick) {
-              showNotification('Analiz yapılamadı', 'error');
-              return;
-            }
-            const contentQuick = document.getElementById('ga4-abtest-content');
-            if (!contentQuick) {
-              showNotification('Popup elementi bulunamadı. Lütfen sayfayı yenileyin.', 'error');
-              return;
-            }
-            await displayResults(contentQuick, {
-              reportName: results.data.reportName,
-              dateRange: analysisDataQuick.dateRange || results.data.dateRange,
-              sessionTab: analysisDataQuick.sessionTab.split('-')[1],
-              conversionTab: analysisDataQuick.conversionTab.split('-')[1],
-              analysis: analysisQuick,
-              bussinessImpact: analysisDataQuick.bussinessImpact || '',
-              periodCount: analysisDataQuick.periodCount,
-              autoSave: true,
-            });
-          }
-          break;
-        case 'quick-save-direct':
-          {
-            const directDataQuick = prepareDirectAnalysisData(results.data.tableData);
-            if (!directDataQuick) {
-              showNotification('Direkt analiz verisi hazırlanamadı', 'error');
-              return;
-            }
-            const directAnalysisQuick = await analyzeABTest(directDataQuick);
-            if (!directAnalysisQuick) {
-              showNotification('Direkt analiz yapılamadı', 'error');
-              return;
-            }
-            const directContentQuick = document.getElementById('ga4-abtest-content');
-            if (!directContentQuick) {
-              showNotification('Popup elementi bulunamadı. Lütfen sayfayı yenileyin.', 'error');
-              return;
-            }
-            await displayResults(directContentQuick, {
-              reportName: results.data.reportName,
-              dateRange: results.data.dateRange,
-              analysis: directAnalysisQuick,
-              sessionTab: results.data.tableData.kpis[0],
-              conversionTab: results.data.tableData.kpis[1],
-              bussinessImpact: '',
-              autoSave: true,
-            });
-          }
-          break;
-      }
-
-      // Popup'ı göster (analiz durumlarında)
-      if (
-        button.dataset.mode === 'analyze' ||
-        button.dataset.mode === 'analyze-direct' ||
-        button.dataset.mode === 'quick-save' ||
-        button.dataset.mode === 'quick-save-direct'
-      ) {
-        const overlayElement = document.getElementById('ga4-abtest-overlay');
-        const resultsElement = document.getElementById('ga4-abtest-results');
-        
-        if (!overlayElement || !resultsElement) {
-          console.error('❌ [DEBUG] Popup elementleri bulunamadı:', {
-            overlay: !!overlayElement,
-            results: !!resultsElement
+          await presentAnalysisResults(directContentElement, {
+            reportName: results.data.reportName,
+            dateRange: results.data.dateRange,
+            analysis: directAnalysis,
+            sessionTab: results.data.tableData.kpis[0],
+            conversionTab: results.data.tableData.kpis[1],
+            bussinessImpact: '',
           });
-          showNotification('Popup gösterilemiyor. Lütfen sayfayı yenileyin.', 'error');
-          return;
-        }
-
-        overlayElement.style.display = 'block';
-        resultsElement.style.display = 'flex';
+          break;
       }
 
       // İşlem sonrası storage durumunu konsola yazdır
@@ -910,9 +852,7 @@ export function injectAnalyzeButton() {
         const storageData = JSON.parse(sessionStorage.getItem('ga4_abtest_data') || '{}');
         if (
           button.dataset.mode === 'analyze' ||
-          button.dataset.mode === 'analyze-direct' ||
-          button.dataset.mode === 'quick-save' ||
-          button.dataset.mode === 'quick-save-direct'
+          button.dataset.mode === 'analyze-direct'
         ) {
           // console.log('AB Test Analiz Et butonuna tıklandı. Storage verisi:', storageData);
         }
@@ -970,10 +910,6 @@ function addDataButtons(container, tableData, reportInfo) {
   if (currentKPIs.length === 2) {
       const analyzeButton = createButton('AB Test Analiz Et', 'analyze-direct');
       container.appendChild(analyzeButton);
-
-      const quickSaveButton = createButton('Analiz & Kaydet', 'quick-save-direct');
-      quickSaveButton.classList.add('quick-save');
-      container.appendChild(quickSaveButton);
   } else if (currentKPIs.length === 1) {
       // Session Al butonu
       const sessionButton = createButton('Session Al', 'session');
@@ -1169,16 +1105,6 @@ function addToplaTemizleButtons(container) {
       analyzeDataButton.disabled = !shouldEnable;
       if (analyzeDataButton.disabled) analyzeDataButton.classList.add('disabled');
       container.appendChild(analyzeDataButton);
-
-      // One-click analyze + save when both KPIs are captured
-      const hasQuickSave = container.querySelector('.ga4-abtest-button.quick-save:not(.quick-save-direct)');
-      if (!hasQuickSave) {
-        const quickSaveButton = createButton('Analiz & Kaydet', 'quick-save');
-        quickSaveButton.classList.add('quick-save');
-        quickSaveButton.disabled = !shouldEnable;
-        if (quickSaveButton.disabled) quickSaveButton.classList.add('disabled');
-        container.appendChild(quickSaveButton);
-      }
     }
   }
 }
@@ -1469,21 +1395,20 @@ function renderToplaPanelContent(panel, reportInfo) {
         const contentElement = document.getElementById('ga4-abtest-content');
         if (!contentElement) { showNotification('Popup elementi bulunamadı.', 'error'); return; }
 
-        await displayResults(contentElement, {
+        await presentAnalysisResults(contentElement, {
           reportName: reportName,
           dateRange: analysisData.dateRange,
-          sessionTab: analysisData.sessionTab.includes('-') ? analysisData.sessionTab.split('-')[1] : analysisData.sessionTab,
-          conversionTab: analysisData.conversionTab.includes('-') ? analysisData.conversionTab.split('-')[1] : analysisData.conversionTab,
+          sessionTab: analysisData.sessionTab.includes('-')
+            ? analysisData.sessionTab.split('-')[1]
+            : analysisData.sessionTab,
+          conversionTab: analysisData.conversionTab.includes('-')
+            ? analysisData.conversionTab.split('-')[1]
+            : analysisData.conversionTab,
           analysis,
           bussinessImpact: '',
           periodCount: analysisData.periodCount,
-          testDuration: analysisData.testDuration
+          testDuration: analysisData.testDuration,
         });
-
-        const overlayEl = document.getElementById('ga4-abtest-overlay');
-        const resultsEl = document.getElementById('ga4-abtest-results');
-        if (overlayEl) overlayEl.style.display = 'block';
-        if (resultsEl) resultsEl.style.display = 'flex';
       } catch (e) {
         showNotification('Analiz hatası: ' + e.message, 'error');
       }

@@ -445,6 +445,139 @@ export function getResultsStyles() {
           color: #174ea6;
           background: #e8f0fe;
       }
+
+      .ga4-auth-prompt-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 10050;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          background: rgba(0, 0, 0, 0.55);
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.2s ease;
+      }
+
+      .ga4-auth-prompt-card {
+          position: relative;
+          width: 100%;
+          max-width: 380px;
+          padding: 24px;
+          border-radius: 12px;
+          background: #fff;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+      }
+
+      .ga4-auth-prompt-close {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          width: 32px;
+          height: 32px;
+          border: none;
+          border-radius: 6px;
+          background: transparent;
+          color: #6b7280;
+          font-size: 22px;
+          line-height: 1;
+          cursor: pointer;
+      }
+
+      .ga4-auth-prompt-close:hover {
+          background: #f3f4f6;
+          color: #111827;
+      }
+
+      .ga4-auth-prompt-title {
+          margin: 0 32px 8px 0;
+          font-size: 17px;
+          font-weight: 700;
+          color: #0e2c2d;
+          line-height: 1.3;
+      }
+
+      .ga4-auth-prompt-desc {
+          margin: 0 0 12px;
+          font-size: 13px;
+          color: #4b5563;
+          line-height: 1.45;
+      }
+
+      .ga4-auth-prompt-warning {
+          margin-bottom: 16px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          border: 1px solid #fcd34d;
+          background: #fffbeb;
+          font-size: 12px;
+          color: #92400e;
+          line-height: 1.4;
+      }
+
+      .ga4-auth-prompt-form {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-bottom: 12px;
+      }
+
+      .ga4-auth-prompt-input {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 10px 12px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          font-size: 14px;
+          color: #111827;
+      }
+
+      .ga4-auth-prompt-input:focus {
+          outline: none;
+          border-color: #250c4b;
+          box-shadow: 0 0 0 2px rgba(37, 12, 75, 0.12);
+      }
+
+      .ga4-auth-prompt-error {
+          font-size: 12px;
+          color: #dc2626;
+      }
+
+      .ga4-auth-prompt-btn {
+          width: 100%;
+          padding: 11px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s, opacity 0.15s;
+      }
+
+      .ga4-auth-prompt-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+      }
+
+      .ga4-auth-prompt-btn-primary {
+          border: none;
+          background: #250c4b;
+          color: #fff;
+      }
+
+      .ga4-auth-prompt-btn-primary:hover:not(:disabled) {
+          background: #3d1a75;
+      }
+
+      .ga4-auth-prompt-btn-ghost {
+          border: 1px solid #e5e7eb;
+          background: #fff;
+          color: #374151;
+      }
+
+      .ga4-auth-prompt-btn-ghost:hover {
+          background: #f9fafb;
+      }
+
     #ga4-abtest-results {
       position: fixed;
       top: 50%;
@@ -585,6 +718,29 @@ export function getResultsStyles() {
             outline: none;
             border-color: #250c4b;
             box-shadow: 0 0 0 2px rgba(37, 12, 75, 0.12);
+        }
+
+        .brand-save-btn {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #250c4b;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s, background 0.15s;
+            white-space: nowrap;
+        }
+
+        .brand-save-btn:hover:not(:disabled) {
+            background: #3d1a75;
+        }
+
+        .brand-save-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
         }
 
         .brand-select-hint {
