@@ -277,6 +277,9 @@ async function copyResultsAsImage(popup, data, type = 'extension') {
       loadingElements.forEach((el) => (el.style.display = 'none'));
 
       const popupElement = document.querySelector('.abtest-popup');
+      // Hide brand picker row from screenshot (login hint, dropdown, errors)
+      const brandSelectRows = popupElement.querySelectorAll('.brand-select-row');
+      brandSelectRows.forEach((row) => (row.style.display = 'none'));
       const monthlyHeaders = popupElement.querySelectorAll('th:nth-child(7)');
       const yearlyHeaders = popupElement.querySelectorAll('th:nth-child(8)');
       const monthlyCells = popupElement.querySelectorAll('td:nth-child(7)');
@@ -318,6 +321,8 @@ async function copyResultsAsImage(popup, data, type = 'extension') {
           document.querySelector('#conclusion-input-copy').style.display = 'none';
 
           loadingElements.forEach((el) => (el.style.display = ''));
+
+          brandSelectRows.forEach((row) => (row.style.display = ''));
 
           monthlyHeaders.forEach((header) => (header.style.display = ''));
           yearlyHeaders.forEach((header) => (header.style.display = ''));
