@@ -37,14 +37,9 @@ function bindAddBrandButton(row, brandMgmtUrl) {
 
 /** Mount brand UI below popup header; returns selection helpers for save */
 export async function initBrandSelector(popup, reportName) {
-  const row = document.createElement('div');
-  row.className = 'brand-select-row';
-
   const token = await getStoredToken();
+  // No login — skip brand UI so analysis works without backend
   if (!token) {
-    row.innerHTML =
-      '<span class="brand-select-hint">Rapor kaydetmek için extension popup\'tan giriş yapın.</span>';
-    insertAfterPopupHeader(popup, row);
     return {
       needsSelection: false,
       getSelectedBrandId: () => null,
@@ -52,22 +47,19 @@ export async function initBrandSelector(popup, reportName) {
     };
   }
 
+  const row = document.createElement('div');
+  row.className = 'brand-select-row';
+
   let brands = [];
-  // Resolve dashboard URL once before rendering add-brand links
   const brandMgmtUrl = await buildBrandManagementUrlAsync();
 
   try {
     brands = await fetchAccessibleBrands();
   } catch (err) {
+    // Backend down — hide brand UI, analysis still works
     console.error('Brand fetch failed:', err);
-    row.innerHTML = `
-      <span class="brand-select-error">Marka listesi yüklenemedi. Sayfayı yenileyip tekrar deneyin.</span>
-      ${renderAddBrandButton('+ Yeni marka ekle', brandMgmtUrl)}
-    `;
-    insertAfterPopupHeader(popup, row);
-    bindAddBrandButton(row, brandMgmtUrl);
     return {
-      needsSelection: true,
+      needsSelection: false,
       getSelectedBrandId: () => null,
       autoBrandId: null,
     };

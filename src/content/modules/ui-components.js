@@ -4,7 +4,6 @@ import { formatDateTurkish, parseTurkishDate } from './date-utils.js';
 import { waitForAllElements, queryFirst } from './dom-helpers.js';
 import { setupResultEventListeners } from './event-handlers.js';
 import { getStoredToken } from '../../utils/auth-store.js';
-import { gateAnalysisAuth } from './auth-login-prompt.js';
 import { analyzeABTest, calculateSignificance, calculateTestDuration, calculateBinaryWinnerProbabilities, calculateExtraTransactions } from './statistics.js';
 import { getResultsTemplate } from './templates.js';
 /**
@@ -347,21 +346,14 @@ function showResultsOverlay() {
 }
 
 /**
- * Auth gate then render analysis popup (returns false if user cancelled)
+ * Show analysis results popup (no login gate — analysis works offline)
  * @param {HTMLElement} contentElement
  * @param {Object} payload - Analysis result data
  */
 async function presentAnalysisResults(contentElement, payload) {
-  const gate = await gateAnalysisAuth();
-  if (gate.cancelled) return false;
-
-  if (!gate.allowSave) {
-    showNotification('Giriş yapılmadı — rapor dashboard\'a kaydedilmeyecek.', 'info');
-  } else if (gate.freshLogin) {
-    showNotification('Giriş başarılı', 'success');
-  }
-
-  const finalPayload = gate.allowSave ? { ...payload, saveAfterAnalyze: true } : payload;
+  // Skip auth prompt; save only if already logged in (backend optional)
+  const loggedIn = !!(await getStoredToken());
+  const finalPayload = loggedIn ? { ...payload, saveAfterAnalyze: true } : payload;
   await displayResults(contentElement, finalPayload);
   showResultsOverlay();
   return true;
