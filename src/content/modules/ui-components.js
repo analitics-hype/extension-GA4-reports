@@ -691,7 +691,7 @@ export function injectAnalyzeButton() {
       // Buton tipine göre işlem yap
       switch (button.dataset.mode) {
         case 'session':
-          // console.log('📥 [DEBUG] Session butonu - Veri kaydediliyor...');
+          console.log('[GA4 session click] tableData:', results.data?.tableData);
           saveKPIData(results.data, results.data.tableData, 'session');
           // Butonları yeniden oluştur (Analiz Et butonunu aktif etmek ve subtitle'ı güncellemek için)
           setTimeout(() => {

@@ -28,10 +28,20 @@ export function saveKPIData(reportInfo, tableData, type) {
     // // console.log('🔍 [DEBUG] Mevcut session storage:', storedData);
     
     const currentKPI = tableData.kpis[0];
-    const segments = tableData.segments;
+    const segments = tableData.segments || [];
 
     // Tab ismini al
     const tabName = getTabName();
+
+    console.group('[GA4 saveKPIData]', type);
+    console.log('reportName:', reportInfo.reportName);
+    console.log('tabName:', tabName);
+    console.log('kpis:', tableData.kpis);
+    console.log('chipSegments:', reportInfo.segments);
+    console.log(
+      'tableSegments:',
+      segments.map((s) => ({ name: JSON.stringify(s.segment), metrics: s.metrics })),
+    );
 
     // Kontrol ve varyant gruplarını bul
     const control = segments.find(segment => 
@@ -49,6 +59,10 @@ export function saveKPIData(reportInfo, tableData, type) {
               segmentLower.includes('variant') ||
               segmentLower.includes('totals')); // Totals'ı geçici olarak kabul et
     });
+
+    console.log('matchedControl:', control?.segment || null);
+    console.log('matchedVariants:', variants.map((v) => v.segment));
+    console.groupEnd();
 
     if (!control) {
       console.error('Kontrol grubu bulunamadı. Mevcut segmentler:', segments.map(s => s.segment));

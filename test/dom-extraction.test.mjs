@@ -62,6 +62,25 @@ async function runTests() {
     assert.equal(table.segments[0].metrics.Sessions, 337);
     assert.equal(table.segments[1].metrics.Sessions, 323);
   });
+
+  // Analytics 360: segment text sits on td.adv-table-option-cell (no projected-content-container)
+  {
+    const html = fs.readFileSync(path.join(__dirname, '../hatadom.html'), 'utf8');
+    const dom = new JSDOM(html);
+    global.document = dom.window.document;
+    global.window = dom.window;
+    const { getTableData } = await loadExtractionModule();
+    const { detectTableVariant } = await import(pathToFileURL(
+      path.join(__dirname, '../src/content/modules/dom-helpers.js'),
+    ).href);
+    const doc = dom.window.document;
+    assert.equal(detectTableVariant(doc), 'new');
+    const table = getTableData(doc);
+    assert.equal(table.segments[0].segment, 'V0');
+    assert.equal(table.segments[1].segment, 'V1');
+    assert.equal(table.segments[0].metrics.Sessions, 136710);
+    assert.equal(table.segments[1].metrics.Sessions, 74423);
+  }
 }
 
 runTests()

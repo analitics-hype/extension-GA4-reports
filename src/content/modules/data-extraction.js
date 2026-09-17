@@ -6,6 +6,7 @@ import {
   queryFirst,
   queryText,
   detectTableVariant,
+  probeSelectorChain,
 } from './dom-helpers.js';
 
 /**
@@ -47,6 +48,24 @@ function buildTableData(kpiHeaders, segmentNames, allValues) {
   return { kpis: kpiHeaders, segments: tableData };
 }
 
+/** Log which selector matched so 360 vs standard DOM diffs are visible */
+function logTableExtract(variant, root, extra = {}) {
+  console.group('[GA4 extract]', variant);
+  console.log('hostname:', window.location?.hostname);
+  console.log('newTableMarker', probeSelectorChain(root, 'newTableMarker'));
+  console.log('oldTableMarker', probeSelectorChain(root, 'oldTableMarker'));
+  console.log('newTableSegmentNames', probeSelectorChain(root, 'newTableSegmentNames'));
+  console.log('newTableKpiHeaders', probeSelectorChain(root, 'newTableKpiHeaders'));
+  console.log('newTableCellValues', probeSelectorChain(root, 'newTableCellValues'));
+  if (variant === 'old') {
+    console.log('oldTableSegmentNames', probeSelectorChain(root, 'oldTableSegmentNames'));
+    console.log('oldTableKpiHeaders', probeSelectorChain(root, 'oldTableKpiHeaders'));
+    console.log('oldTableCellValues', probeSelectorChain(root, 'oldTableCellValues'));
+  }
+  console.log('result', extra);
+  console.groupEnd();
+}
+
 /** New mat-table GA4 structure */
 function getTableDataNew(root = document) {
   const kpiHeaders = queryAll(root, 'newTableKpiHeaders').map((el) => el.textContent.trim());
@@ -57,7 +76,14 @@ function getTableDataNew(root = document) {
     allValues.push(parseLocaleNumber(el.textContent));
   });
 
-  return buildTableData(kpiHeaders, segmentNames, allValues);
+  const tableData = buildTableData(kpiHeaders, segmentNames, allValues);
+  logTableExtract('new', root, {
+    kpiHeaders,
+    segmentNames,
+    allValues,
+    segmentCount: tableData.segments.length,
+  });
+  return tableData;
 }
 
 /** Legacy SVG crosstab GA4 structure */
@@ -77,7 +103,16 @@ function getTableDataOld(root = document) {
 export function getTableData(root = document) {
   const variant = detectTableVariant(root);
   if (variant === 'new') return getTableDataNew(root);
-  if (variant === 'old') return getTableDataOld(root);
+  if (variant === 'old') {
+    const tableData = getTableDataOld(root);
+    logTableExtract('old', root, {
+      kpiHeaders: tableData.kpis,
+      segmentNames: tableData.segments.map((s) => s.segment),
+      segmentCount: tableData.segments.length,
+    });
+    return tableData;
+  }
+  logTableExtract('none', root, { kpis: [], segments: [] });
   return { kpis: [], segments: [] };
 }
 

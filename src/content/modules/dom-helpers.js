@@ -28,6 +28,22 @@ export function queryAll(root, selectorKeyOrList, doc = document) {
   return [];
 }
 
+/** Probe each fallback selector — counts + sample texts for console diagnosis */
+export function probeSelectorChain(root, selectorKeyOrList, sampleLimit = 6) {
+  const scope = root || document;
+  const selectors = resolveSelectors(selectorKeyOrList);
+  const probes = selectors.map((sel) => {
+    const nodes = Array.from(scope.querySelectorAll(sel));
+    return {
+      sel,
+      count: nodes.length,
+      texts: nodes.slice(0, sampleLimit).map((el) => (el.textContent || '').trim()),
+    };
+  });
+  const winner = probes.find((p) => p.count > 0) || null;
+  return { key: Array.isArray(selectorKeyOrList) ? '(custom)' : selectorKeyOrList, winner, probes };
+}
+
 /** Trimmed text from first matched element */
 export function queryText(root, selectorKeyOrList, doc = document) {
   const el = queryFirst(root, selectorKeyOrList, doc);

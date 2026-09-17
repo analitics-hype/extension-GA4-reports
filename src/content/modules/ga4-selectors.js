@@ -58,6 +58,9 @@ export const GA4_SELECTORS = {
   newTableSegmentNames: [
     'tbody tr td.adv-table-option-cell .projected-content-container',
     'td.adv-table-option-cell .projected-content-container',
+    // GA4 360 / newer Explore: segment label is text node inside the cell (no wrapper)
+    'tbody tr td.adv-table-option-cell',
+    'td.adv-table-option-cell',
   ],
   newTableCellValues: [
     'tbody tr td.adv-table-data-cell .cell-value',
