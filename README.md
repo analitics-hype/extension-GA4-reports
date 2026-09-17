@@ -1,6 +1,6 @@
 # HypeCro — GA4 AB Test Chrome Extension
 
-**Manifest v3** · **v1.8** — GA4 segment karşılaştırma raporlarından A/B test verisi çeker, istatistiksel analiz yapar ve HypeCro backend’e kaydeder.
+**Manifest v3** · **v1.8.1** — GA4 segment karşılaştırma raporlarından A/B test verisi çeker, istatistiksel analiz yapar ve HypeCro backend’e kaydeder.
 
 Monorepo kökü: [../README.md](../README.md) · Geliştirme planı: [../TODO.md](../TODO.md)
 
